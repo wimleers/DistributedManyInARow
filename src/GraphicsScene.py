@@ -15,7 +15,7 @@ class GraphicsScene(QtGui.QGraphicsScene):
         self.setupDefaultBoard(nrRows, nrCols)
         
     def setupDefaultBoard(self, nrRows, nrCols):
-        self.gameBoard = [[QtGui.QGraphicsRectItem for i in xrange(nrCols)] for j in xrange(nrRows)]
+        self.gameBoard = [[QtGui.QGraphicsRectItem for i in xrange(nrRows)] for j in xrange(nrCols)]
         for i in range(nrCols):
             for j in range(nrRows):
                 rectItem = QtGui.QGraphicsRectItem(i*SIZE, j*SIZE, SIZE, SIZE)
@@ -53,12 +53,12 @@ class GraphicsScene(QtGui.QGraphicsScene):
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     view = QtGui.QGraphicsView()
-    scene = GraphicsScene(10, 10, view)
-    scene.makeMove(0, 9, QtGui.QColor(10, 20, 255))
-    scene.makeMove(3, 9, QtGui.QColor(10, 255, 255))
-    scene.makeMove(4, 9, QtGui.QColor(255, 20, 0))
-    scene.makeMove(7, 9, QtGui.QColor(10, 255, 70))
-    scene.makeMove(9, 9, QtGui.QColor(90, 115, 200))
+    scene = GraphicsScene(13, 10, view)
+    scene.makeMove(0, 12, QtGui.QColor(10, 20, 255))
+    scene.makeMove(3, 12, QtGui.QColor(10, 255, 255))
+    scene.makeMove(4, 12, QtGui.QColor(255, 20, 0))
+    scene.makeMove(7, 12, QtGui.QColor(10, 255, 70))
+    scene.makeMove(9, 12, QtGui.QColor(90, 115, 200))
     view.setScene(scene)
     view.show()
     app.exec_()

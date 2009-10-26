@@ -10,7 +10,7 @@ class MainWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self, win_parent)
         
         #testing:
-        self.newGame(15, 15)
+        self.newGame(10, 5)
 
     def newGame(self, nrRows = 7, nrCols = 7):
         self.createLayout(nrRows, nrCols)
@@ -28,6 +28,22 @@ class MainWindow(QtGui.QMainWindow):
         
         self.gridLayout.addWidget(view, 0, 0)
         self.gridLayout.addWidget(self.logWidget, 0, 1)
+        
+class StartDialog(QtGui.QDialog):
+    def __init__(self, win_parent = None):
+        QtGui.QDialog.__init__(self, win_parent)
+        
+        self.createLayout()
+        
+    def createLayout(self):
+        self.layout = QtGui.QHBoxLayout(self)
+        startNewGameButton = QtGui.QPushButton("Start a game", self)
+        joinGameButton = QtGui.QPushButton("Join a game", self)
+        
+        self.layout.addWidget(startNewGameButton)
+        self.layout.addWidget(joinGameButton)
+        
+        #TODO: buttons moeten signal nog doorgeven aan mainwindow zodat correct venster geopend kan worden
         
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
