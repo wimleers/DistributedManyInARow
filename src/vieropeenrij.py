@@ -29,7 +29,10 @@ class Players:
                 self.currentPlayer = self.numPlayers - 1     
 
     def getCurrentPlayerName (self):
-        return self.players[self.currentPlayer].name  
+        return self.players[self.currentPlayer].name
+    
+    def getCurrentPlayerColor(self):
+        return self.players[self.currentPlayer].colour
         
     def getNextPlayer (self):
         self.currentPlayer = self.currentPlayer + 1
@@ -230,4 +233,4 @@ print field
 print field.checkWin (10, 5, 5)
 """
 
-game().play()
+#game().play()
