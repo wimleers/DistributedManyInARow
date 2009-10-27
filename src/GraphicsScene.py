@@ -24,7 +24,6 @@ class GraphicsScene(QtGui.QGraphicsScene):
         
     
     def makeMove(self, xpos, ypos, color):
-        print color
         rectItem = self.gameBoard[xpos][ypos]
         x = rectItem.rect().x()
         y = rectItem.rect().y()
