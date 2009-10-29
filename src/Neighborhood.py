@@ -4,6 +4,7 @@ Naming conflicts are solved automatically. Forget IGMP and special hardware
 requirements.
 Uses zeroconf networking."""
 
+
 import select
 import pybonjour
 import threading
@@ -155,7 +156,7 @@ class Neighborhood(threading.Thread):
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
         else:
-            # TODO: add error callback?
+            # TODO: add optional error callback?
             pass
 
         # Discovering our own service doesn't count.
@@ -198,7 +199,7 @@ class Neighborhood(threading.Thread):
         if errorCode != pybonjour.kDNSServiceErr_NoError:
             return
         else:
-            # TODO: add error callback?
+            # TODO: add optional error callback?
             pass
 
         # Only changes in either of these will result in updated service
@@ -268,7 +269,7 @@ class Neighborhood(threading.Thread):
             if curMetadata != newMetadata:
                 for key in updatedServiceKeys:
                     self.peers[serviceName][interfaceIndex][key] = metadata[key]
-                self.peerServiceUpdateCallback(self.peers[serviceName][interfaceIndex])
+                self.peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord)
 
 
     def _queryARecordCallback(self, sdRef, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, rdata, ttl, serviceName, hosttarget, port, txtRecord):
@@ -292,7 +293,7 @@ class Neighborhood(threading.Thread):
             }
             self.peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord)
         else:
-            # TODO: add error callback?
+            # TODO: add optional error callback?
             pass
 
 
@@ -315,9 +316,6 @@ class Neighborhood(threading.Thread):
         # When the value is 
         if value != 'FALSE':
             value = cPickle.loads(value)
-
-        # print "-----------TXT record callback", sdRef, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, ttl, serviceName, hosttarget, port
-        #print key, value
         
         # Only call the peerMessageCallback callback when no more TXT record
         # changes are coming from this service/interface combo.
@@ -485,8 +483,8 @@ if __name__ == "__main__":
     def peerServiceRemovalCallback(serviceName, interfaceIndex):
         print "SERVICE REMOVAL CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d" % (serviceName, interfaceIndex)
 
-    def peerServiceUpdateCallback(obj):
-        print "SERVICE UPDATE CALLBACK FIRED", obj
+    def peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord):
+        print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d, txtRecord=%s" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord)
 
     def peerMessageCallback(serviceName, interfaceIndex, key, value):
         print "PEER MESSAGE CALLBACK FIRED", serviceName, interfaceIndex, key, value
