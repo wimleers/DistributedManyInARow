@@ -1,1 +1,2 @@
-just checking
+Gui:    - pauze inlassen tussen 2 zetten
+        - preview van blokje laten zien ( waar het zal neerkomen )

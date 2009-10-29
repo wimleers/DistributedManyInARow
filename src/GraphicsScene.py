@@ -12,6 +12,11 @@ class GraphicsScene(QtGui.QGraphicsScene):
         
         self.nrRows = nrRows
         self.nrCols = nrCols
+        #contains the column number of the column where the mouse is at
+        self.currentHoverIndex = -1
+        #contains the item that shows where the next block will fall:
+        self.tempItem = None
+        
         self.setupDefaultBoard(nrRows, nrCols)
         
     def setupDefaultBoard(self, nrRows, nrCols):
@@ -24,6 +29,8 @@ class GraphicsScene(QtGui.QGraphicsScene):
         
     
     def makeMove(self, xpos, ypos, color):
+        if(self.tempItem != None):
+            self.removeItem(self.tempItem)
         rectItem = self.gameBoard[xpos][ypos]
         x = rectItem.rect().x()
         y = rectItem.rect().y()
@@ -43,13 +50,46 @@ class GraphicsScene(QtGui.QGraphicsScene):
         
         self.addItem(circleItem)
         
+    def makeDummyMove(self, columnIndex, rowIndex, color):
+        print rowIndex
+        if(self.tempItem != None):
+            self.removeItem(self.tempItem)
+
+        rectItem = self.gameBoard[columnIndex][rowIndex]
+        x = rectItem.rect().x()
+        y = rectItem.rect().y()
+        
+        self.tempItem = QtGui.QGraphicsEllipseItem(x + (SIZE - CIRCLESIZE)/2, y + (SIZE - CIRCLESIZE)/2, CIRCLESIZE, CIRCLESIZE)
+        radialGrad = QtGui.QRadialGradient(x + (CIRCLESIZE/2) + (SIZE - CIRCLESIZE)/2, y + (CIRCLESIZE/2) + (SIZE - CIRCLESIZE)/2, CIRCLESIZE/2)
+        radialGrad.setColorAt(0, color)
+        #radialGrad.setColorAt(0.45, QtGui.QColor(255,255,255))
+        radialGrad.setColorAt(1, QtGui.QColor(255,255,255))
+        brush = QtGui.QBrush(radialGrad)
+       
+        pen = QtGui.QPen(QtCore.Qt.NoPen)
+        
+        self.tempItem.setPen(pen)
+        self.tempItem.setBrush(brush)
+        
+        self.addItem(self.tempItem)
+        
     def mousePressEvent(self, event):
         item = self.itemAt(event.scenePos())
         for i in range(self.nrCols):
             for j in range(self.nrRows):
                 if(self.gameBoard[i][j] == item):
                     self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
-    
+                    
+    def mouseMoveEvent(self, event):
+        item = self.itemAt(event.scenePos())
+        for i in range(self.nrCols):
+            for j in range(self.nrRows):
+                if(self.gameBoard[i][j] == item):
+                    if(i != self.currentHoverIndex):
+                        self.currentHoverIndex = i
+                        self.emit(QtCore.SIGNAL("mouseHoverColumn(int)"), i)
+                        
+
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     view = QtGui.QGraphicsView()

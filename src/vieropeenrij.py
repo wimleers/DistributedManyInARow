@@ -56,6 +56,14 @@ class Field:
                 self.values[x][i] = player
                 return i
         return -1
+    
+    def getRowIndexByColumn(self, x):
+        #returns the next block index of the row in the given column ( used to show the user where the next block will fall )
+        for i in range (self.cols, -1, -1):
+            if self.checkMove (x, i):
+                return i
+        return -1
+
 
     def checkMove (self, x, y):
         if self.rows > y and self.cols > x:

@@ -24,8 +24,10 @@ class MainWindow(QtGui.QMainWindow):
         self.players.addPlayer(vieropeenrij.Player("Brecht", QtGui.QColor(0, 20, 250)))
         self.players.addPlayer(vieropeenrij.Player("Kristof", QtGui.QColor(255, 20, 0)))
         QtCore.QObject.connect(self.graphicsScene, QtCore.SIGNAL("playerClicked(int)"), self.localGameClickTest)
+        QtCore.QObject.connect(self.graphicsScene, QtCore.SIGNAL("mouseHoverColumn(int)"), self.localGameHoverTest)
         
     def localGameClickTest(self, move):
+        print "Move" + str(move)
         valid = self.field.makeMove (move, self.players.currentPlayer)
         if(valid):
             #update GUI:
@@ -39,6 +41,13 @@ class MainWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.information(self, "Spel afgelopen", "Speler " + self.players.getCurrentPlayerName() + " heeft gewonnen!")
         else:
             self.players.getNextPlayer()
+            
+    def localGameHoverTest(self, columnIndex):
+        valid = self.field.getRowIndexByColumn(columnIndex)
+        if(valid):
+            #update the gui
+            color = self.players.getCurrentPlayerColor()
+            self.graphicsScene.makeDummyMove(columnIndex, valid, color)
         
     def createLayout(self, nrRows, nrCols):
         self.gridLayout = QtGui.QGridLayout()
