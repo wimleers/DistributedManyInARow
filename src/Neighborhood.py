@@ -314,7 +314,7 @@ class Neighborhood(threading.Thread):
             return
 
         # When the value is 
-        if value != 'FALSE':
+        if value != 'DELETE':
             value = cPickle.loads(value)
         
         # Only call the peerMessageCallback callback when no more TXT record
@@ -415,12 +415,13 @@ class Neighborhood(threading.Thread):
         for key in curKeys.difference(newKeys):
             print "\tRemoving: ", key
             # A removed record doesn't get broadcast. So first update the
-            # record's value to the string 'FALSE'. This our way of telling
-            # that this TXT record will be deleted.
+            # record's value to the string 'DELETE'. This is our way of
+            # telling that this TXT record will be deleted.
             pybonjour.DNSServiceUpdateRecord(sdRef = self.sdRefServer,
                                              RecordRef = self.txtRecords[key]['recordReference'],
-                                             rdata = pybonjour.TXTRecord({key : 'FALSE'}))
+                                             rdata = pybonjour.TXTRecord({key : 'DELETE'}))
             # Now actually remove the record.
+            # TRICKY: this doesn't have to ever happen. See the above comment.
             # pybonjour.DNSServiceRemoveRecord(sdRef = self.sdRefServer,
             #                                  RecordRef = self.txtRecords[key]['recordReference'])
             # Remove the stored TXT record.
