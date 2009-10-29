@@ -68,21 +68,23 @@ class Neighborhood(threading.Thread):
         self.peerServiceRemovalCallback       = peerServiceRemovalCallback
         self.peerServiceUpdateCallback        = peerServiceUpdateCallback
         self.peerMessageCallback              = peerMessageCallback
-
-        self.serviceName      = serviceName
-        self.serviceType      = serviceType
-        self.protocolVersion  = protocolVersion
-        self.port             = port
-        self.txtRecords       = {}
-        self.peers            = {}
-        self.lock             = threading.Lock()
-        self.msgSendQueue     = Queue.Queue()
-        self.msgReceivedQueue = Queue.Queue()
-        self.serverReady      = False
-        self.clientReady      = False
-        self.alive            = True
-        self.die              = False
-
+        # Metadata about ourself.
+        self.serviceName     = serviceName
+        self.serviceType     = serviceType
+        self.protocolVersion = protocolVersion
+        self.port            = port
+        self.txtRecords      = {}
+        # Metadata about peers.
+        self.peers                                   = {}
+        self.peersTxtRecords                         = {}
+        self.peersTxtRecordsUpdatedSinceLastCallback = {}
+        # Lock.
+        self.lock = threading.Lock()
+        # State variables.
+        self.serverReady = False
+        self.clientReady = False
+        self.alive       = True
+        self.die         = False
         # Service descriptor references.
         self.sdRefServer           = None # A single sdRef to send messages.
         self.sdRefBrowse           = None # A single sdRef to discover peers.
@@ -211,7 +213,6 @@ class Neighborhood(threading.Thread):
             'fullname' : fullname,
             'hosttarget' : hosttarget,
             'port' : port,
-            'txtRecord' : txtRecord,
         }
 
         # Store metadata.
@@ -227,8 +228,7 @@ class Neighborhood(threading.Thread):
             curriedCallback = curry(self._queryARecordCallback,
                                     serviceName = serviceName,
                                     hosttarget = hosttarget,
-                                    port = port,
-                                    txtRecord = txtRecord)
+                                    port = port)
 
             # Retrieve the IP address by querying the peer's A record.
             sdRef = pybonjour.DNSServiceQueryRecord(interfaceIndex = interfaceIndex,
@@ -272,9 +272,9 @@ class Neighborhood(threading.Thread):
                 self.peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord)
 
 
-    def _queryARecordCallback(self, sdRef, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, rdata, ttl, serviceName, hosttarget, port, txtRecord):
-        """Callback for DNSServiceQueryRecord(). serviceName, hosttarget, port
-        and txtRecord should be curried.
+    def _queryARecordCallback(self, sdRef, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, rdata, ttl, serviceName, hosttarget, port):
+        """Callback for DNSServiceQueryRecord(). serviceName, hosttarget and 
+        port should be curried.
         """
 
         if errorCode == pybonjour.kDNSServiceErr_NoError:
@@ -289,9 +289,8 @@ class Neighborhood(threading.Thread):
                 'hosttarget' : hosttarget,
                 'ip' : ip,
                 'port' : port,
-                'txtRecord' : txtRecord
             }
-            self.peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord)
+            self.peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port)
         else:
             # TODO: add optional error callback?
             pass
@@ -303,6 +302,15 @@ class Neighborhood(threading.Thread):
         key = txtRecord[0:index].strip()
         value = txtRecord[index+1:]
 
+        # When the TTL is zero, a record has been "removed". In reality, this
+        # is only broadcast when a record has been *updated*, not removed
+        # (when a record is removed, nothing is broadcast). The new value is
+        # included in the same broadcast and therefor this callback function
+        # will be called again for this TXT record, but then containing the
+        # updated value. Hence we can ignore this callback.
+        if ttl == 0:
+            return
+
         # When the key is "textvers", verify the protocol version.
         if key == 'textvers':
             if str(value) != str(self.protocolVersion):
@@ -313,14 +321,33 @@ class Neighborhood(threading.Thread):
                 raise ProtocolVersionMismatch, "Removed peer '%s' due to protol version mismatch. Own protocol version: %s, other protocol version: %s." % (serviceName, self.protocolVersion, value)
             return
 
-        # When the value is 
-        if value != 'DELETE':
-            value = cPickle.loads(value)
-        
+        # When the value is 'DELETE', delete the corresponding key from the
+        # TXT records. Else, unpickle the value and update our local mirror
+        # of the peer's TXT records (and remember which records have been
+        # updated, so we can send a single callback for multiple changes).
+        if value == 'DELETE':
+            if key in self.peersTxtRecords.keys():
+                del self.peersTxtRecords
+        else:
+            if serviceName not in self.peersTxtRecords.keys():
+                self.peersTxtRecords[serviceName] = {}
+                self.peersTxtRecordsUpdatedSinceLastCallback[serviceName] = {}
+            if interfaceIndex not in self.peersTxtRecords[serviceName].keys():
+                self.peersTxtRecords[serviceName][interfaceIndex] = {}
+                self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
+            self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex].append(key)
+            self.peersTxtRecords[serviceName][interfaceIndex][key] = cPickle.loads(value)
+
         # Only call the peerMessageCallback callback when no more TXT record
         # changes are coming from this service/interface combo.
-        # if not (flags & pybonjour.kDNSServiceFlagsMoreComing):
-        self.peerMessageCallback(serviceName, interfaceIndex, key, value)
+        if not (flags & pybonjour.kDNSServiceFlagsMoreComing):
+            # Get the TXT records and the keys of the updated TXT records.
+            txtRecords = self.peersTxtRecords[serviceName][interfaceIndex]
+            updated    = self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex]
+            # Erase the list of keys of updated TXT records for the next time.
+            self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
+            # Send the callback.
+            self.peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated)
 
 
     def _processResponses(self):
@@ -478,17 +505,20 @@ if __name__ == "__main__":
     def serviceRegistrationErrorCallback(sdRef, flags, errorCode, errorMessage, name, regtype, domain):
         print "SERVICE REGISTRATION ERROR CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, errorMessage=%s, name=%s, regtype=%s, domain=%s" % (sdRef, flags, errorCode, errorMessage, name, regtype, domain)
 
-    def peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord):
-        print "SERVICE DISCOVERY CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d, txtRecord=%s" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord)
+    def peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
+        print "SERVICE DISCOVERY CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
 
     def peerServiceRemovalCallback(serviceName, interfaceIndex):
         print "SERVICE REMOVAL CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d" % (serviceName, interfaceIndex)
 
-    def peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord):
-        print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d, txtRecord=%s" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port, txtRecord)
+    def peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
+        print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
 
-    def peerMessageCallback(serviceName, interfaceIndex, key, value):
-        print "PEER MESSAGE CALLBACK FIRED", serviceName, interfaceIndex, key, value
+    def peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated):
+        print "PEER MESSAGE CALLBACK FIRED", serviceName, interfaceIndex, txtRecords
+        print "\tupdated:"
+        for key in updated:
+            print "\t\t:", key, txtRecords[key]
 
 
     parser = OptionParser()
@@ -515,9 +545,9 @@ if __name__ == "__main__":
     # Prepare two messages to be broadcast.
     message = {
         'status'           : 'playing',
-        # 'playerName'       : 'Wim',
-        # 'hostedGame'       : "Wim's game",
-        # 'participatedGame' : "Wim's game",
+        'playerName'       : 'Wim',
+        'hostedGame'       : "Wim's game",
+        'participatedGame' : "Wim's game",
         'players'          : 3,
         'timePlaying'      : 123,
         'newMoves'         : [(3245, 'Brecht', 2), (3246, 'Kristof', 3)],
