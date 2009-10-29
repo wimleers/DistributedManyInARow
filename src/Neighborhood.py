@@ -78,6 +78,7 @@ class Neighborhood(threading.Thread):
         self.peers                                   = {}
         self.peersTxtRecords                         = {}
         self.peersTxtRecordsUpdatedSinceLastCallback = {}
+        self.peersTxtRecordsDeletedSinceLastCallback = {}
         # Lock.
         self.lock = threading.Lock()
         # State variables.
@@ -322,6 +323,15 @@ class Neighborhood(threading.Thread):
                 raise ProtocolVersionMismatch, "Removed peer '%s' due to protol version mismatch. Own protocol version: %s, other protocol version: %s." % (serviceName, self.protocolVersion, value)
             return
 
+        # Keep track of all TXT records.
+        if serviceName not in self.peersTxtRecords.keys():
+            self.peersTxtRecords[serviceName] = {}
+            self.peersTxtRecordsUpdatedSinceLastCallback[serviceName] = {}
+            self.peersTxtRecordsDeletedSinceLastCallback[serviceName] = {}
+        if interfaceIndex not in self.peersTxtRecords[serviceName].keys():
+            self.peersTxtRecords[serviceName][interfaceIndex] = {}
+            self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
+            self.peersTxtRecordsDeletedSinceLastCallback[serviceName][interfaceIndex] = []
         # When the value is 'DELETE', delete the corresponding key from the
         # TXT records. Else, unpickle the value and update our local mirror
         # of the peer's TXT records (and remember which records have been
@@ -331,26 +341,27 @@ class Neighborhood(threading.Thread):
                 if interfaceIndex in self.peersTxtRecords[serviceName].keys():
                     if key in self.peersTxtRecords[serviceName][interfaceIndex].keys():
                         del self.peersTxtRecords[serviceName][interfaceIndex][key]
+            self.peersTxtRecordsDeletedSinceLastCallback[serviceName][interfaceIndex].append(key)
+        # Else, this is either a new or updated key-value pair. Mark the key
+        # as having an update and store the pickled value.
         else:
-            if serviceName not in self.peersTxtRecords.keys():
-                self.peersTxtRecords[serviceName] = {}
-                self.peersTxtRecordsUpdatedSinceLastCallback[serviceName] = {}
-            if interfaceIndex not in self.peersTxtRecords[serviceName].keys():
-                self.peersTxtRecords[serviceName][interfaceIndex] = {}
-                self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
             self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex].append(key)
             self.peersTxtRecords[serviceName][interfaceIndex][key] = cPickle.loads(value)
 
         # Only call the peerMessageCallback callback when no more TXT record
         # changes are coming from this service/interface combo.
         if not (flags & pybonjour.kDNSServiceFlagsMoreComing):
-            # Get the TXT records and the keys of the updated TXT records.
+            # Get the TXT records and the keys of the updated and deleted TXT
+            # records.
             txtRecords = self.peersTxtRecords[serviceName][interfaceIndex]
             updated    = self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex]
-            # Erase the list of keys of updated TXT records for the next time.
+            deleted    = self.peersTxtRecordsDeletedSinceLastCallback[serviceName][interfaceIndex]
+            # Erase the lists of keys of updated and deleted TXT records for
+            # the next time.
             self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
+            self.peersTxtRecordsDeletedSinceLastCallback[serviceName][interfaceIndex] = []
             # Send the callback.
-            self.peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated)
+            self.peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted)
 
 
     def _processResponses(self):
@@ -517,11 +528,15 @@ if __name__ == "__main__":
     def peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
 
-    def peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated):
+    def peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted):
         print "PEER MESSAGE CALLBACK FIRED", serviceName, interfaceIndex, txtRecords
         print "\tupdated:"
         for key in updated:
-            print "\t\t:", key, txtRecords[key]
+            print "\t\t", key, txtRecords[key]
+        print "\tdeleted:"
+        for key in deleted:
+            print "\t\t", key
+
 
 
     parser = OptionParser()
