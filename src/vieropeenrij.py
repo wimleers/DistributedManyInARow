@@ -51,7 +51,7 @@ class Field:
         self.values = [[-1 for i in xrange(rows)] for j in xrange(cols)]
 
     def makeMove (self, x, player):
-        for i in range (self.cols, 0, -1):
+        for i in range (self.cols, -1, -1):
             if self.checkMove (x, i):
                 self.values[x][i] = player
                 return i
