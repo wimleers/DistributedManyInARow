@@ -297,10 +297,11 @@ class Neighborhood(threading.Thread):
 
 
     def _queryTXTRecordCallback(self, sdRef, flags, interfaceIndex, errorCode, fullname, rrtype, rrclass, rdata, ttl, serviceName, hosttarget, port):
-        txtRecord = rdata
-        index = txtRecord.find('=')
-        key = txtRecord[0:index].strip()
-        value = txtRecord[index+1:]
+        # Parse the data directly, without using pybonjour.TXTRecord. The code
+        # would be uglier and less efficient, because we always store a single
+        # key-value pair, whereas the specification allows for multiple pairs.
+        length = ord(rdata[0])
+        key, value = rdata[1:length+1].split('=', 1)
 
         # When the TTL is zero, a record has been "removed". In reality, this
         # is only broadcast when a record has been *updated*, not removed
@@ -326,8 +327,10 @@ class Neighborhood(threading.Thread):
         # of the peer's TXT records (and remember which records have been
         # updated, so we can send a single callback for multiple changes).
         if value == 'DELETE':
-            if key in self.peersTxtRecords.keys():
-                del self.peersTxtRecords
+            if serviceName in self.peersTxtRecords.keys():
+                if interfaceIndex in self.peersTxtRecords[serviceName].keys():
+                    if key in self.peersTxtRecords[serviceName][interfaceIndex].keys():
+                        del self.peersTxtRecords[serviceName][interfaceIndex][key]
         else:
             if serviceName not in self.peersTxtRecords.keys():
                 self.peersTxtRecords[serviceName] = {}
@@ -418,7 +421,7 @@ class Neighborhood(threading.Thread):
             # Validate TXT record size: it should never exceed 65536 bytes.
             if len(key) + len('=') + len(serializedValue) > 65536:
                 raise MessageTooLargeError, "message size is: %d for key '%s'" % (len(key) + len('=') + len(serializedValue), key)
-            txt = pybonjour.TXTRecord({key : serializedValue})
+            txt = pybonjour.TXTRecord({key : serializedValue}, False) # Disable strict checking, which would only allow for 255 bytes.
             newTxtRecords[key] = {'value' : value, 'txtRecord' : txt}
 
         # Make sets out of the keys of the TXT records to make it easier to
