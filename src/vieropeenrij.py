@@ -23,6 +23,7 @@ class Players:
             if player.colour == p.colour:
                 p.status = 'left'
         
+        #if the player who left is the current player, we give the turn to the previous player again
         if self.players[self.currentPlayer].colour == player.colour:
             self.currentPlayer = self.currentPlayer -1
             if (self.currentPlayer < 0):
@@ -48,12 +49,13 @@ class Field:
     def __init__ (self, rows, cols):
         self.rows = rows
         self.cols = cols
-        self.values = [[-1 for i in xrange(rows)] for j in xrange(cols)]
+        self.values = [[-1 for i in xrange(cols)] for j in xrange(rows)]
 
     def makeMove (self, x, player):
-        for i in range (self.cols, -1, -1):
+        
+        for i in range (self.rows, -1, -1):
             if self.checkMove (x, i):
-                self.values[x][i] = player
+                self.values[i][x] = player
                 return i
         return -1
     
@@ -67,24 +69,24 @@ class Field:
 
     def checkMove (self, x, y):
         if self.rows > y and self.cols > x:
-            return self.values[x][y] == -1
+            return self.values[y][x] == -1
         else:
             return False
 
     def checkWin (self, x, y, inARow):
-        if (self.values[x][y] != -1):
+        if (self.values[y][x] != -1):
             found = True
             won = False
             
             startX = x
             startY = y        
             for i in range (1, inARow):
-                if (self.values[x-i][y] == self.values[x][y]) and x-i >= 0:
+                if (self.values[y][x-i] == self.values[y][x]) and x-i >= 0:
                     startX = x - i
             
             if startX + inARow - 1 < self.cols:
                 for i in range (startX+1, startX + inARow):
-                    if (self.values[i][y] != self.values[startX][y]):
+                    if (self.values[y][i] != self.values[y][startX]):
                         found = False
             else:
                 found = False
@@ -94,13 +96,13 @@ class Field:
             startX = x
             startY = y        
             for i in range (1, inARow):
-                if (y - i >= 0 and self.values[x][y-i] == self.values[x][y]):
+                if (y - i >= 0 and self.values[y-i][x] == self.values[y][x]):
                     startY = y - i
 
             found = True
             if startY + inARow - 1 < self.rows:
                 for i in range (startY+1, startY + inARow):
-                    if (self.values[x][i] != self.values[x][startY]):
+                    if (self.values[i][x] != self.values[startY][x]):
                         found = False
 
             else:
@@ -112,13 +114,13 @@ class Field:
             startY = y   
          
             for i in range (1, inARow):
-                if (y + i < self.rows and x-i >= 0 and self.values[x-i][y+i] == self.values[x][y]):
+                if (y + i < self.rows and x-i >= 0 and self.values[y+i][x-i] == self.values[x][y]):
                     startY = y + i
                     startX = x- i
             found = True
             if startY - inARow + 1 > 0 and startX + inARow - 1 < self.cols:
                 for i in range (1,inARow):
-                    if (self.values[startX+i][startY-i] != self.values[startX][startY]):
+                    if (self.values[startY - i][startX+i] != self.values[startY][startX]):
                         found = False
 
             else:
@@ -130,14 +132,14 @@ class Field:
             startY = y   
          
             for i in range (1, inARow):
-                if (y + i < self.rows and x + i < self.cols and self.values[x+i][y+i] == self.values[x][y]):
+                if (y + i < self.rows and x + i < self.cols and self.values[y+i][x+i] == self.values[y][x]):
                     startY = y + i
                     startX = x + i
 
             found = True
             if startY - inARow + 1 >= 0 and startX - inARow + 1 >= 0:
                 for i in range (1,inARow):
-                    if (self.values[startX-i][startY-i] != self.values[startX][startY]):
+                    if (self.values[startY-i][startX-i] != self.values[startY][startX]):
                         found = False
 
             else:
@@ -158,10 +160,10 @@ class Field:
         for y in range (0, self.rows):
             string = string + ' ' + str(y) + ' '
             for x in range (0, self.cols):  
-                if self.values[x][y] == -1:
+                if self.values[y][x] == -1:
                     string = string + ' x '
                 else:
-                    string = string + ' ' + str(self.values[x][y]) + ' '
+                    string = string + ' ' + str(self.values[y][x]) + ' '
             string = string + '\n'
         return string
 
@@ -169,7 +171,7 @@ class game:
     def __init__ (self):
         self.inARow = 4
         self.players = Players()
-        self.field = Field(10, 10)
+        self.field = Field(10, 15)
         self.players.addPlayer (Player(raw_input('Name for player 1: '), 'blue'))
         self.players.addPlayer (Player(raw_input('Name for player 2: '), 'red'))
     def play(self):
@@ -181,7 +183,7 @@ class game:
     
             while valid == -1:
                 move = int(raw_input(self.players.getCurrentPlayerName() + '\'s turn! Please give a correct move: '))
-                valid = field.makeMove (move, self.players.currentPlayer)
+                valid = self.field.makeMove (move, self.players.currentPlayer)
 
             won = self.field.checkWin(move, valid, self.inARow)
             if won:
@@ -241,4 +243,4 @@ print field
 print field.checkWin (10, 5, 5)
 """
 
-#game().play()
+game().play()
