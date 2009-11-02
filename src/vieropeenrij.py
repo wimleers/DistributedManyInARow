@@ -23,11 +23,11 @@ class Players:
             if player.colour == p.colour:
                 p.status = 'left'
         
-        #if the player who left is the current player, we give the turn to the previous player again
+        #if the player who left is the current player, we give the turn to the next player
         if self.players[self.currentPlayer].colour == player.colour:
-            self.currentPlayer = self.currentPlayer -1
-            if (self.currentPlayer < 0):
-                self.currentPlayer = self.numPlayers - 1     
+            self.currentPlayer = self.currentPlayer +1
+            if (self.currentPlayer > self.numPlayers - 1):
+                self.currentPlayer = 0 
 
     def getCurrentPlayerName (self):
         return self.players[self.currentPlayer].name
@@ -81,7 +81,7 @@ class Field:
             startX = x
             startY = y        
             for i in range (1, inARow):
-                if (self.values[y][x-i] == self.values[y][x]) and x-i >= 0:
+                if  x-i >= 0 and (self.values[y][x-i] == self.values[y][x]):
                     startX = x - i
             
             if startX + inARow - 1 < self.cols:
@@ -114,9 +114,10 @@ class Field:
             startY = y   
          
             for i in range (1, inARow):
-                if (y + i < self.rows and x-i >= 0 and self.values[y+i][x-i] == self.values[x][y]):
+                if (y + i < self.rows and x-i >= 0 and self.values[y+i][x-i] == self.values[y][x]):
                     startY = y + i
                     startX = x- i
+
             found = True
             if startY - inARow + 1 > 0 and startX + inARow - 1 < self.cols:
                 for i in range (1,inARow):
