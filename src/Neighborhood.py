@@ -207,7 +207,7 @@ class Neighborhood(threading.Thread):
 
         # Only changes in either of these will result in updated service
         # metadata, and the associated peerServiceUpdateCallback callback.
-        updatedServiceKeys = ['serviceName', 'fullname', 'hosttarget', 'port']
+        updatedServiceKeys = ['fullname', 'hosttarget', 'port']
 
         metadata = {
             'serviceName' : serviceName,
