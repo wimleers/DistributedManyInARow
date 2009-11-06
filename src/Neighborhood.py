@@ -11,6 +11,7 @@ import threading
 import Queue
 import cPickle
 import socket
+import time
 
 
 # The protocol version is stored automatically in the primary TXT record and
