@@ -51,7 +51,6 @@ class GraphicsScene(QtGui.QGraphicsScene):
         self.addItem(circleItem)
         
     def makeDummyMove(self, columnIndex, rowIndex, color):
-        print rowIndex
         if(self.tempItem != None):
             self.removeItem(self.tempItem)
 

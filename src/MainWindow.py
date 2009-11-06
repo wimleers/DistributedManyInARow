@@ -35,7 +35,7 @@ class MainWindow(QtGui.QMainWindow):
         newGameDialog = NewGameDialog(self)
         (gameName, gameComment, inARow, numRows, numCols) = newGameDialog.getGameInfo()
         if(gameName != None):
-            self.tabWidget.addTab(GameWidget(numRows, numCols, self.tabWidget), gameName)
+            self.tabWidget.addTab(GameWidget(numRows, numCols, inARow, self.tabWidget), gameName)
         
     def joinGame(self):
         #TODO: implement. Launch dialog asking which game to join
@@ -102,9 +102,9 @@ class NewGameDialog(QtGui.QDialog):
         self.numColEdit.setMaximum(30)
         self.numColEdit.setValue(1)
         self.inARowEdit = QtGui.QSpinBox(self)
-        self.inARowEdit.setMinimum(1)
+        self.inARowEdit.setMinimum(2)
         self.inARowEdit.setMaximum(30)
-        self.inARowEdit.setValue(1)
+        self.inARowEdit.setValue(2)
         startButton = QtGui.QPushButton("&Start", self)
         startButton.clicked.connect(self.paramsSet)
         cancelButton = QtGui.QPushButton("&Cancel", self)
