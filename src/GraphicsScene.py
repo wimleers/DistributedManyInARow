@@ -79,6 +79,14 @@ class GraphicsScene(QtGui.QGraphicsScene):
                 if(self.gameBoard[i][j] == item):
                     self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
                     
+    def mouseDoubleClickEvent(self, event):
+        #this enables the user to click rapidly
+        item = self.itemAt(event.scenePos())
+        for i in range(self.nrCols):
+            for j in range(self.nrRows):
+                if(self.gameBoard[i][j] == item):
+                    self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
+                    
     def mouseMoveEvent(self, event):
         item = self.itemAt(event.scenePos())
         for i in range(self.nrCols):

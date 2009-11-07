@@ -35,6 +35,13 @@ class Players:
     def getCurrentPlayerColor(self):
         return self.players[self.currentPlayer].colour
         
+    def getPlayerColor(self, name):
+        for player in self.players:
+            if(player.name == name):
+                return player.colour
+        
+        return -1
+        
     def getNextPlayer (self):
         self.currentPlayer = self.currentPlayer + 1
         self.currentPlayer = self.currentPlayer % self.numPlayers

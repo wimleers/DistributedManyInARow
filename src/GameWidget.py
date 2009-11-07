@@ -47,15 +47,20 @@ class GameWidget(QtGui.QWidget):
             
     def sendMessage(self):
         #todo: implement.
-        x = 1
+        message = self.ui.chatEdit.text()
+        self.ui.chatEdit.clear()
         
     def receiveMessage(self, playerName, message):
         #todo: implement
-        x = 1
+        color = self.players.getPlayerColor(playerName)
+        if(color != -1):
+            newItem = QtGui.QListWidgetItem(playerName + ": " + message, self.ui.messageList)
+            newItem.setBackgroundColor(color)
+            self.ui.messageList.addItem(newItem)
         
     def makeMove(self, column):
         #todo: implement (IMPORTANT: probably best practice to pass the move to the network class and only put it on the gameboard when we receive our own move in the buffer. This way a correct order is maintained)
-        x = 1
+        print "Dropped in column: " + str(column)
         
     def makeHoverMove(self, column):
         valid = self.field.getRowIndexByColumn(column)
@@ -75,4 +80,5 @@ class GameWidget(QtGui.QWidget):
         self.logList = LogWidget(self)
         self.logList.setMaximumSize(250, 200)
         self.ui.verticalLayout.addWidget(self.logList)
+        self.ui.chatEdit.returnPressed.connect(self.sendMessage)
         self.ui.show()
