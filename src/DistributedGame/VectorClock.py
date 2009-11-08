@@ -7,7 +7,7 @@ class VectorClock(object):
     def __init__(self, vectorClockString=None):
         self.clock = {}
         if vectorClockString is not None:
-            self.loads(vectorClockString)
+            self._loads(vectorClockString)
 
 
     def add(self, id):
@@ -36,10 +36,15 @@ class VectorClock(object):
         return ';'.join(['%s:%s' % (id, value) for id, value in self.clock.items()])
 
 
-    def loads(self, vectorClockString):
+    def _loads(self, vectorClockString):
         for item in vectorClockString.split(';'):
             (id, value) = item.split(':')
             self.clock[id] = int(value)
+
+
+    @classmethod
+    def loads(cls, vectorClockString):
+        return cls(vectorClockString)
 
 
     def _mergeKeys(self, other):
@@ -130,6 +135,16 @@ class VectorClock(object):
         """
         self._mergeKeys(other)
         return set(self.clock.keys()) == set(other.clock.keys()) and self.isImmediatelyFollowedBy(other) and other.isImmediatelyFollowedBy(self)
+
+
+    @staticmethod
+    def sort(x, y):
+        if x <= y:
+            return -1
+        elif x == y or x.isConcurrentWith(y):
+            return 0
+        else:
+            return 1
 
 
     def merge(self, other):
