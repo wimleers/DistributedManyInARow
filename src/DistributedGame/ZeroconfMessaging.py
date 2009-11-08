@@ -1,17 +1,17 @@
-"""Neighborhood is a module to make local multicasted, multithreaded, queued
-messaging simpler than you can imagine. Peer discovery happens automatically.
-Naming conflicts are solved automatically. Forget IGMP and special hardware
-requirements.
+"""ZeroconfMessaging is a module to make local multicasted, multithreaded,
+queued unordered, reliable messaging simpler than you can imagine. Peer
+discovery happens automatically. Naming conflicts are solved automatically.
+Forget IGMP and special hardware requirements.
 Uses zeroconf networking."""
 
 
 import select
 import pybonjour
-import threading
-import Queue
 import cPickle
 import socket
 import time
+
+from MulticastMessaging import MulticastMessaging
 
 
 # The protocol version is stored automatically in the primary TXT record and
@@ -23,10 +23,10 @@ import time
 
 
 # Define exceptions.
-class NeighborhoodError(Exception): pass
-class InvalidCallbackError(NeighborhoodError): pass
-class MessageTooLargeError(NeighborhoodError): pass
-class ProtocolVersionMismatch(NeighborhoodError): pass
+class ZeroconfMessagingError(Exception): pass
+class InvalidCallbackError(ZeroconfMessagingError): pass
+class MessageTooLargeError(ZeroconfMessagingError): pass
+class ProtocolVersionMismatch(ZeroconfMessagingError): pass
 
 
 # Copied from django.utils.functional
@@ -36,7 +36,7 @@ def curry(_curried_func, *args, **kwargs):
     return _curried
 
 
-class Neighborhood(threading.Thread):
+class ZeroconfMessaging(MulticastMessaging):
 
     def __init__(self, serviceName, serviceType, protocolVersion=1, port=None,
                  serviceRegistrationCallback=None,
@@ -76,11 +76,6 @@ class Neighborhood(threading.Thread):
         self.peersTxtRecords                         = {}
         self.peersTxtRecordsUpdatedSinceLastCallback = {}
         self.peersTxtRecordsDeletedSinceLastCallback = {}
-        # Message relaying.
-        self.inbox  = Queue.Queue()
-        self.outbox = Queue.Queue()
-        # Mutual exclusion.
-        self.lock = threading.Condition()
         # State variables.
         self.serverReady = False
         self.clientReady = False
@@ -92,7 +87,7 @@ class Neighborhood(threading.Thread):
         self.sdRefSingleShots      = []   # A list of sdRefs that need to return something just once.
         self.sdRefTXTRecordQueries = []   # A list of sdRefs that are "long-lived", always awaiting new/updated TXT records.
 
-        threading.Thread.__init__(self)
+        super(ZeroconfMessaging, self).__init__()
 
 
     def run(self):
@@ -532,20 +527,20 @@ if __name__ == "__main__":
 
     (options, args) = parser.parse_args()
 
-    # Initialize the neighborhood.
+    # Initialize ZeroconfMessaging.
     port = 4444
     if options.listenOnly:
         port = 4445
-    n = Neighborhood(serviceName = platform.node(),
-                     serviceType = '_manyinarow._tcp',
-                     protocolVersion = 1,
-                     port = port,
-                     serviceRegistrationCallback=serviceRegistrationCallback,
-                     serviceRegistrationErrorCallback=serviceRegistrationErrorCallback,
-                     peerServiceDiscoveryCallback=peerServiceDiscoveryCallback,
-                     peerServiceRemovalCallback=peerServiceRemovalCallback,
-                     peerServiceUpdateCallback=peerServiceUpdateCallback)
-
+    z = ZeroconfMessaging(serviceName = platform.node(),
+                          serviceType = '_manyinarow._tcp',
+                          protocolVersion = 1,
+                          port = port,
+                          serviceRegistrationCallback=serviceRegistrationCallback,
+                          serviceRegistrationErrorCallback=serviceRegistrationErrorCallback,
+                          peerServiceDiscoveryCallback=peerServiceDiscoveryCallback,
+                          peerServiceRemovalCallback=peerServiceRemovalCallback,
+                          peerServiceUpdateCallback=peerServiceUpdateCallback)
+ 
     # Prepare two messages to be broadcast.
     message = {
         'status'           : 'playing',
@@ -561,27 +556,27 @@ if __name__ == "__main__":
     del messageTwo['newMoves']
 
     # Sample usage.
-    n.start()
+    z.start()
     if not options.listenOnly:
         # Put messages in the outbox.
         time.sleep(5)
-        with n.lock:
-            n.outbox.put(message)
+        with z.lock:
+            z.outbox.put(message)
         time.sleep(2)
-        with n.lock:
-            n.outbox.put(messageTwo)
+        with z.lock:
+            z.outbox.put(messageTwo)
         time.sleep(10)
     else:
         # Get messages from the inbox.
-        with n.lock:
+        with z.lock:
             endTime = time.time() + 15
             # Keep fetching messages until the end time has been reached.
             while time.time() < endTime:
                 # Wait for a next message.
-                while n.inbox.qsize() == 0 and time.time() < endTime:
-                    n.lock.wait(1) # Timeout after 1 second of waiting.
-                if n.inbox.qsize() > 0:
-                    serviceName, interfaceIndex, txtRecords, updated, deleted = n.inbox.get_nowait()
+                while z.inbox.qsize() == 0 and time.time() < endTime:
+                    z.lock.wait(1) # Timeout after 1 second of waiting.
+                if z.inbox.qsize() > 0:
+                    serviceName, interfaceIndex, txtRecords, updated, deleted = z.inbox.get_nowait()
                     print "MESSAGE RECEIVED", serviceName, interfaceIndex, txtRecords
                     print "\tupdated:"
                     for key in updated:
@@ -589,6 +584,4 @@ if __name__ == "__main__":
                     print "\tdeleted:"
                     for key in deleted:
                         print "\t\t", key
-
-                    
-    n.kill()
+    z.kill()
