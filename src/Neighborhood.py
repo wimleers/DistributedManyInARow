@@ -17,7 +17,7 @@ import time
 # The protocol version is stored automatically in the primary TXT record and
 # associated with a "textvers" key, as is the convention in Bonjour/zeroconf.
 
-
+# TODO: automatically split up payloads of >64 KB in a single message.
 # TODO: add the ability to act as a relay node, i.e. to pass received
 # messages through to nodes on other interfaces.
 
@@ -43,8 +43,7 @@ class Neighborhood(threading.Thread):
                  serviceRegistrationErrorCallback=None,
                  peerServiceDiscoveryCallback=None,
                  peerServiceRemovalCallback=None,
-                 peerServiceUpdateCallback=None,
-                 peerMessageCallback=None):
+                 peerServiceUpdateCallback=None):
         # Ensure the callbacks are valid.
         if not callable(serviceRegistrationCallback):
             raise InvalidCallbackError, "service registration callback"
@@ -56,8 +55,6 @@ class Neighborhood(threading.Thread):
             raise InvalidCallbackError, "peer service removal callback"
         if not callable(peerServiceUpdateCallback):
             raise InvalidCallbackError, "peer service update callback"
-        if not callable(peerMessageCallback):
-            raise InvalidCallbackError, "peer message callback"
 
         # TODO: allow port to be None, in which case a free port should be
         # found automatically.
@@ -68,7 +65,6 @@ class Neighborhood(threading.Thread):
         self.peerServiceDiscoveryCallback     = peerServiceDiscoveryCallback
         self.peerServiceRemovalCallback       = peerServiceRemovalCallback
         self.peerServiceUpdateCallback        = peerServiceUpdateCallback
-        self.peerMessageCallback              = peerMessageCallback
         # Metadata about ourself.
         self.serviceName     = serviceName
         self.serviceType     = serviceType
@@ -80,8 +76,11 @@ class Neighborhood(threading.Thread):
         self.peersTxtRecords                         = {}
         self.peersTxtRecordsUpdatedSinceLastCallback = {}
         self.peersTxtRecordsDeletedSinceLastCallback = {}
-        # Lock.
-        self.lock = threading.Lock()
+        # Message relaying.
+        self.inbox  = Queue.Queue()
+        self.outbox = Queue.Queue()
+        # Mutual exclusion.
+        self.lock = threading.Condition()
         # State variables.
         self.serverReady = False
         self.clientReady = False
@@ -110,17 +109,17 @@ class Neighborhood(threading.Thread):
 
             # When registration has been completed:
             if self.serverReady:
-                # 1) send multicast messages.
+                # 1) send multicast messages waiting in the outbox.
                 self._send()
 
                 # 2) receive multicast messages.
-                self._receive()
+                # Messages are received through _queryTXTRecordCallback() and
+                # are put in the inbox directly from there.
 
             # Commit suicide when asked to.
-            self.lock.acquire()
-            if self.die:
-                self._commitSuicide()
-            self.lock.release()
+            with self.lock:
+                if self.die:
+                    self._commitSuicide()
 
             # Processing the queues 50 times per second is sufficient.
             time.sleep(0.02)
@@ -128,9 +127,8 @@ class Neighborhood(threading.Thread):
 
     def kill(self):
         # Let the thread know it should commit suicide.
-        self.lock.acquire()
-        self.die = True
-        self.lock.release()
+        with self.lock:
+            self.die = True
 
 
     def _register(self):
@@ -349,8 +347,8 @@ class Neighborhood(threading.Thread):
             self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex].append(key)
             self.peersTxtRecords[serviceName][interfaceIndex][key] = cPickle.loads(value)
 
-        # Only call the peerMessageCallback callback when no more TXT record
-        # changes are coming from this service/interface combo.
+        # Only put messages in the inbox when no more TXT record changes are
+        # coming from this service/interface combo.
         if not (flags & pybonjour.kDNSServiceFlagsMoreComing):
             # Get the TXT records and the keys of the updated and deleted TXT
             # records.
@@ -361,8 +359,10 @@ class Neighborhood(threading.Thread):
             # the next time.
             self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
             self.peersTxtRecordsDeletedSinceLastCallback[serviceName][interfaceIndex] = []
-            # Send the callback.
-            self.peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted)
+            # Update the inbox.
+            with self.lock:
+                self.inbox.put((serviceName, interfaceIndex, txtRecords, updated, deleted))
+                self.lock.notifyAll()
 
 
     def _processResponses(self):
@@ -419,9 +419,11 @@ class Neighborhood(threading.Thread):
 
 
     def _send(self):
-        # Iterate over all messages in the "out" queue and route them through
-        # self._sendMessage(message).
-        pass
+        """Send all messages waiting to be sent in the outbox."""
+
+        with self.lock:
+            while self.outbox.qsize() > 0:
+                self._sendMessage(self.outbox.get())
 
 
     def _sendMessage(self, message):
@@ -481,12 +483,6 @@ class Neighborhood(threading.Thread):
             self.txtRecords[key]['recordReference'] = rRef
 
 
-    def _receive(self):
-        # - Detect added/updated TXT records using pybonjour.DNSServiceQueryRecord() with kDNSServiceFlagsLongLivedQuery
-        # - Compare found TXT records with the stored TXT records.
-        pass
-
-
     def _commitSuicide(self):
         """Commit suicide when asked to. The lock must be acquired before
         calling this method.
@@ -529,16 +525,6 @@ if __name__ == "__main__":
     def peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
 
-    def peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted):
-        print "PEER MESSAGE CALLBACK FIRED", serviceName, interfaceIndex, txtRecords
-        print "\tupdated:"
-        for key in updated:
-            print "\t\t", key, txtRecords[key]
-        print "\tdeleted:"
-        for key in deleted:
-            print "\t\t", key
-
-
 
     parser = OptionParser()
     parser.add_option("-l", "--listenOnly", action="store_true", dest="listenOnly",
@@ -558,8 +544,7 @@ if __name__ == "__main__":
                      serviceRegistrationErrorCallback=serviceRegistrationErrorCallback,
                      peerServiceDiscoveryCallback=peerServiceDiscoveryCallback,
                      peerServiceRemovalCallback=peerServiceRemovalCallback,
-                     peerServiceUpdateCallback=peerServiceUpdateCallback,
-                     peerMessageCallback=peerMessageCallback)
+                     peerServiceUpdateCallback=peerServiceUpdateCallback)
 
     # Prepare two messages to be broadcast.
     message = {
@@ -578,11 +563,32 @@ if __name__ == "__main__":
     # Sample usage.
     n.start()
     if not options.listenOnly:
+        # Put messages in the outbox.
         time.sleep(5)
-        n._sendMessage(message)
+        with n.lock:
+            n.outbox.put(message)
         time.sleep(2)
-        n._sendMessage(messageTwo)
-        time.sleep(15)
+        with n.lock:
+            n.outbox.put(messageTwo)
+        time.sleep(10)
     else:
-        time.sleep(20)
+        # Get messages from the inbox.
+        with n.lock:
+            endTime = time.time() + 15
+            # Keep fetching messages until the end time has been reached.
+            while time.time() < endTime:
+                # Wait for a next message.
+                while n.inbox.qsize() == 0 and time.time() < endTime:
+                    n.lock.wait(1) # Timeout after 1 second of waiting.
+                if n.inbox.qsize() > 0:
+                    serviceName, interfaceIndex, txtRecords, updated, deleted = n.inbox.get_nowait()
+                    print "MESSAGE RECEIVED", serviceName, interfaceIndex, txtRecords
+                    print "\tupdated:"
+                    for key in updated:
+                        print "\t\t", key, txtRecords[key]
+                    print "\tdeleted:"
+                    for key in deleted:
+                        print "\t\t", key
+
+                    
     n.kill()
