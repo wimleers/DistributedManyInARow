@@ -28,6 +28,10 @@ class VectorClock(object):
         return self.clock
 
 
+    def __getitem__(self, id):
+        return self.clock[id]
+
+
     def dumps(self):
         return ';'.join(['%s:%s' % (id, value) for id, value in self.clock.items()])
 
