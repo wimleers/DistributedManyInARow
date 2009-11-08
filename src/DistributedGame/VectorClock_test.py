@@ -109,18 +109,11 @@ class TestVectorClock(unittest.TestCase):
         """Test binary operations on vector clocks whom contain different ids.
         """
 
+        # v1 contains foo (= 0), v2 contains both foo (= 0) and bar (= 1).
         v1 = VectorClock()
         v1.add('foo')
         v2 = VectorClock()
         v2.increment('bar')
-
-        self.assertFalse(v1 == v2)
-        self.assertTrue (v1 != v2) # True statement.
-        self.assertTrue (v1 <= v2) # True statement.
-        self.assertFalse(v1 <  v2)
-        self.assertFalse(v1 >= v2)
-        self.assertFalse(v1 >  v2)
-        self.assertFalse(v1.isConcurrentWith(v2))
 
         self.assertFalse(v1 == v2)
         self.assertTrue (v1 != v2) # True statement.
