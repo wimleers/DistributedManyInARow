@@ -43,7 +43,8 @@ class ZeroconfMessaging(MulticastMessaging):
                  serviceRegistrationErrorCallback=None,
                  peerServiceDiscoveryCallback=None,
                  peerServiceRemovalCallback=None,
-                 peerServiceUpdateCallback=None):
+                 peerServiceUpdateCallback=None,
+                 peerMessageCallback=None):
         # Ensure the callbacks are valid.
         if not callable(serviceRegistrationCallback):
             raise InvalidCallbackError, "service registration callback"
@@ -65,6 +66,7 @@ class ZeroconfMessaging(MulticastMessaging):
         self.peerServiceDiscoveryCallback     = peerServiceDiscoveryCallback
         self.peerServiceRemovalCallback       = peerServiceRemovalCallback
         self.peerServiceUpdateCallback        = peerServiceUpdateCallback
+        self.peerMessageCallback              = peerMessageCallback
         # Metadata about ourself.
         self.serviceName     = serviceName
         self.serviceType     = serviceType
@@ -354,10 +356,15 @@ class ZeroconfMessaging(MulticastMessaging):
             # the next time.
             self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
             self.peersTxtRecordsDeletedSinceLastCallback[serviceName][interfaceIndex] = []
-            # Update the inbox.
+            # Send the callback, if it is callable.
+            if callable(self.peerMessageCallback):
+                self.peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted)
+            # Update the inbox. Only send the message itself, not the details.
             with self.lock:
-                self.inbox.put((serviceName, interfaceIndex, txtRecords, updated, deleted))
-                self.lock.notifyAll()
+                message = [{header : txtRecords[header]} for header in updated]
+                if len(message):
+                    self.inbox.put(message)
+                    self.lock.notifyAll()
 
 
     def _processResponses(self):
@@ -520,6 +527,14 @@ if __name__ == "__main__":
     def peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
 
+    def peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted):
+        print "PEER MESSAGE CALLBACK FIRED", serviceName, interfaceIndex, txtRecords
+        print "\tupdated:"
+        for key in updated:
+            print "\t\t", key, txtRecords[key]
+        print "\tdeleted:"
+        for key in deleted:
+            print "\t\t", key
 
     parser = OptionParser()
     parser.add_option("-l", "--listenOnly", action="store_true", dest="listenOnly",
@@ -539,7 +554,9 @@ if __name__ == "__main__":
                           serviceRegistrationErrorCallback=serviceRegistrationErrorCallback,
                           peerServiceDiscoveryCallback=peerServiceDiscoveryCallback,
                           peerServiceRemovalCallback=peerServiceRemovalCallback,
-                          peerServiceUpdateCallback=peerServiceUpdateCallback)
+                          peerServiceUpdateCallback=peerServiceUpdateCallback,
+                          peerMessageCallback=peerMessageCallback)
+     
  
     # Prepare two messages to be broadcast.
     message = {
@@ -576,12 +593,6 @@ if __name__ == "__main__":
                 while z.inbox.qsize() == 0 and time.time() < endTime:
                     z.lock.wait(1) # Timeout after 1 second of waiting.
                 if z.inbox.qsize() > 0:
-                    serviceName, interfaceIndex, txtRecords, updated, deleted = z.inbox.get_nowait()
-                    print "MESSAGE RECEIVED", serviceName, interfaceIndex, txtRecords
-                    print "\tupdated:"
-                    for key in updated:
-                        print "\t\t", key, txtRecords[key]
-                    print "\tdeleted:"
-                    for key in deleted:
-                        print "\t\t", key
+                    message = z.inbox.get()
+                    print "MESSAGE IN INBOX", message
     z.kill()
