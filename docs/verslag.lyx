@@ -1,0 +1,164 @@
+#LyX 1.6.4.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 345
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\language english
+\inputencoding auto
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\cite_engine basic
+\use_bibtopic false
+\paperorientation portrait
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\author "" 
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Comparison of zeroconf and IP multicast
+\end_layout
+
+\begin_layout Section
+Neighborhood.py
+\end_layout
+
+\begin_layout Section
+DistributedGame.py
+\end_layout
+
+\begin_layout Itemize
+Gebruikt vector clock i.p.v.
+ Lamport clock o.w.v.:
+\end_layout
+
+\begin_layout Quotation
+Mattern and Fidge developed vector clocks to voercome the shortcoming of
+ Lamport's clocks: the fact that from 
+\begin_inset Formula $L(e)<L(e')$
+\end_inset
+
+ we cannot conclude that 
+\begin_inset Formula $e\rightarrow e'$
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "lamport vs vector"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Inzicht: een vector klok ís de frontier van een consistent cut (althans
+ in een verzonden bericht
+\end_layout
+
+\begin_layout Itemize
+Snapshot algorithm van Chandy en Lamport ( p453) is onmogelijk te gebruiken
+ omdat daarvoor een FIFO-ordered message delivery voor nodig is.
+\end_layout
+
+\begin_layout Itemize
+Eigen snapshot algoritme: a.d.h.v.
+ vector clocks.
+ Vereist om de vector clock van het laatste ontvangen in-order bericht bij
+ te houden.
+ Messages die out-of-order aankomen, worden in een set bijgehouden.
+ Telkens er een nieuw bericht bijkomt wordt gekeken of dat bericht ofwel
+ >= het laatste ontvangen in-order bericht, ofwel ||.
+ Indien ja, wordt dat het laatste ontvangen bericht.
+ Vector clock wordt enkel geïncrementeerd bij het zenden van een bericht.
+ Zo kunnen ontbrekende (of vertraagde berichten, dus geen FIFO-vereiste
+ meer!) gedetecteerd worden.
+\begin_inset Newline newline
+\end_inset
+
+Om verloren gegane messages weer op te vragen, is daarbovenop het volgende
+ vereist: ieder proces moet op ieder moment zijn state opgeslagen hebben
+ en tevens alle inkomende berichten.
+ Indien na een gegeven tijdspanne het eerstvolgende bericht nog steeds niet
+ is gekomen, wordt een verlies aangenomen.
+ Maar omdat er nog berichten zijn die daarna komen, weten we welke range
+ berichten verloren zijn gegaan.
+ Dus vragen we dat proces om die berichten nogmaals te sturen.
+ (Een eenvoudige check op de vector clock laat toe om processen die deze
+ berichten wel al ontvangen hebben, te negeren.) Als dat proces niet binnen
+ een bepaalde tijdspanne stuurt, wordt aangenomen dat dat proces gecrashed
+ is en worden de berichten bij andere peers opgevraagd.
+ Als ook die het niet hebben, worden de overeenkomstige berichten in de
+ set van inkomende berichten gewist.
+\end_layout
+
+\begin_layout Itemize
+Toekomstige optimalisatie.
+ Multicast wordt gebruikt en dus indien een proces een reeks berichten opvraagt
+ die het niet heeft ontvangen, kan het zijn dat ook een ander proces dit
+ doet.
+ Dus random delay (maar > RTT) voordat deze aanvraag wordt gestuurd, zodat
+ een ander proces mogelijk ook van het antwoord kan genieten.
+ Zo wordt de hoeveelheid netwerkverkeer laag gehouden.
+\end_layout
+
+\begin_layout Itemize
+Inzicht: playerUUID moet telkens bij het joinen van een spel gegenereerd
+ worden (dus uniek zijn), want anders is joinen na leaven onmogelijk (omdat
+ de vroegere spelhistorie anders gaat conflicteren).
+ Als je echter als een bestaande (maar gestopte) speler wilt verder spelen,
+ moet er eerst toestemming gevraagd worden aan de andere spelers.
+\end_layout
+
+\begin_layout Itemize
+Mogelijke extra: beperkt aantal toegelaten spelers.
+ Vereist een coördinator en dus ook een election algoritme.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "lamport vs vector"
+
+\end_inset
+
+
+\emph on
+ Distributed Systems: Concepts and Design (fourth edition) — chapter 11:
+ Time and Global States (page 447)
+\emph default
+, George Coulouris; Jean Dollimore; Tim Kindberg, Addison Wesley (2005)
+\end_layout
+
+\end_body
+\end_document
