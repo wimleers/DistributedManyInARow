@@ -360,6 +360,14 @@ if __name__ == "__main__":
         multicast.inbox.put(messageFive)
         multicast.inbox.put(messageThree)
 
+    # Fake the loss of a message
+    v2 = copy.deepcopy(v2)
+    v2.increment(otherSenderUUID)
+    v2.increment(otherSenderUUID)
+    messageSix = {sessionUUID : {'message' : "This should never show up in the inbox because a message was lost.", 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
+    with multicast.lock:
+        multicast.inbox.put(messageSix)
+
     # Allow the thread to run.
     time.sleep(1)
 
