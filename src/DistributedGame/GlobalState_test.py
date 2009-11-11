@@ -1,64 +1,127 @@
-from History import *
-import os
-import os.path
+from GlobalState import *
+import copy
+import uuid
+from MulticastMessaging import *
+from optparse import OptionParser
 import unittest
 
+class GlobalStateTest(unittest.TestCase):
 
-class TestHistory(unittest.TestCase):
+    def testReceiving(self):
+        sessionUUID = str(uuid.uuid1())
+        senderUUID = str(uuid.uuid1())
+        otherSenderUUID = str(uuid.uuid1())
+        multicast = MulticastMessaging()
 
-    def setUp(self):
-        # Ensure that every test suite runs on a fresh new database.
-        dbFile = './testHistory.sqlite'
-        if os.path.exists(dbFile):
-            os.remove(dbFile)
-        self.history = History(dbFile)
+        gs = GlobalState(sessionUUID, senderUUID, multicast)
+        gs.start()
 
+        v1 = VectorClock()
+        v2 = VectorClock()
 
-    def testInitialDB(self):
-        """The initial database should have no groups."""
-        self.assertEqual(self.storage.groups(), [])
+        # Fake the sending of a message. (uncomment this and the test will pass for some reason)
+        #v1.increment(senderUUID)
+        #messageOne = {sessionUUID : {'message' : 'join', 'senderUUID' : senderUUID, 'originUUID' : senderUUID, 'clock' : v1}}
+        #with gs.lock:
+        #    gs.outbox.put(messageOne)
 
+        # Fake the receiving of a message.
+        v2.increment(senderUUID)
+        v2.increment(otherSenderUUID)
+        messageTwo = {sessionUUID : {'message' : 'test', 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
+        with multicast.lock:
+            multicast.inbox.put(messageTwo)
 
-    def testSingleGrid(self):
-        """Store a single grid and retrieve all its metadata."""
-        # Create simple entry in the database.
-        group = "Het Zwin"
-        name  = "Toestand 1980"
-        grid  = [[1,2,3],
-                 [4,5,6],
-                 [7,8,9]]
-        sources = [(0,0),(0,1)]
-        targets = [(1,2),(2,2)]
-        id = self.storage.storeGrid(group, name, grid, sources, targets)
+         # Allow the thread to run.
+        time.sleep(0.2)
 
-        # Validate.
-        self.assertEqual(id, 1)
-        self.assertEqual(self.storage.groups(), ['Het Zwin'])
-        self.assertEqual(self.storage.gridsInGroup('Het Zwin'), {1 : 'Toestand 1980'})
-        self.assertEqual(self.storage.grid(1), (grid, sources, targets))
+        count = 0
+        with gs.lock:
+            while gs.inbox.qsize() > 0:
+                message = gs.inbox.get()
+                count = count+1
 
+        #make sure the received message has the correct values
+        self.assertEquals (count, 1)
+        self.assertEquals (message['message'], 'test')
+        self.assertEquals (message['senderUUID'], otherSenderUUID)
+        self.assertEquals (message['originUUID'], otherSenderUUID)
+        self.assertEquals (message['clock'], v2)
 
-    def testEverything(self):
-        """Store a group of grids, along with result grids of multiple types,
-        retrieve all its metadata and then delete it all.
-        """
+    def testMultipleReceiving(self):
+        sessionUUID = str(uuid.uuid1())
+        senderUUID = str(uuid.uuid1())
+        otherSenderUUID = str(uuid.uuid1())
+        multicast = MulticastMessaging()
 
-        # Create simple entry in the database.
-        group = "Het Zwin"
-        name  = "Toestand 1980"
-        grid  = [[1,2,3],
-                 [4,5,6],
-                 [7,8,9]]
-        sources = [(0,0),(0,1)]
-        targets = [(1,2),(2,2)]
-        id = self.storage.storeGrid(group, name, grid, sources, targets)
+        gs = GlobalState(sessionUUID, senderUUID, multicast)
+        gs.start()
 
-        # Validate.
-        self.assertEqual(id, 1)
-        self.assertEqual(self.storage.groups(), ['Het Zwin'])
-        self.assertEqual(self.storage.gridsInGroup('Het Zwin'), {1 : 'Toestand 1980'})
-        self.assertEqual(self.storage.grid(1), (grid, sources, targets))
+        v1 = VectorClock()
+        v2 = VectorClock()
 
+        # Fake the receiving of three messages in the wrong order.
+        v2 = copy.deepcopy(v2)
+        v2.increment(otherSenderUUID)
+        messageOne = {sessionUUID : {'message' : '1', 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
+        v2 = copy.deepcopy(v2)
+        v2.increment(otherSenderUUID)
+        messageTwo = {sessionUUID : {'message' : "2", 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
+        v2 = copy.deepcopy(v2)
+        v2.increment(otherSenderUUID)
+        messageThree = {sessionUUID : {'message' : "3", 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
+        with multicast.lock:
+            multicast.inbox.put(messageTwo)
+            multicast.inbox.put(messageThree)
+            multicast.inbox.put(messageOne)
+
+         # Allow the thread to run.
+        time.sleep(0.2)
+
+        #add all the messages in an array
+        messages = []
+        with gs.lock:
+            while gs.inbox.qsize() > 0:
+                messages.append(gs.inbox.get())
+
+        #make sure we have the correct number of messages, and that they arrived in the correct order
+        self.assertEquals (len(messages), 3)
+        self.assertEquals (messages[0]['message'], '1')
+        self.assertEquals (messages[1]['message'], '2')
+        self.assertEquals (messages[2]['message'], '3')
+    
+    def testLostMessage(self):
+
+        sessionUUID = str(uuid.uuid1())
+        senderUUID = str(uuid.uuid1())
+        otherSenderUUID = str(uuid.uuid1())
+        multicast = MulticastMessaging()
+
+        gs = GlobalState(sessionUUID, senderUUID, multicast)
+        gs.start()
+
+        v1 = VectorClock()
+        v2 = VectorClock()
+
+         # Fake the loss of a message
+        v2 = copy.deepcopy(v2)
+        v2.increment(otherSenderUUID)
+        v2.increment(otherSenderUUID)
+        messageSix = {sessionUUID : {'message' : "This should never show up in the inbox because a message was lost.", 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
+        with multicast.lock:
+            multicast.inbox.put(messageSix)
+
+        time.sleep(0.2)
+    
+        count = 0
+        with gs.lock:
+            while gs.inbox.qsize() > 0:
+                message = gs.inbox.get()
+                count = count + 1
+
+        self.assertEquals (count, 0)
 
 if __name__ == "__main__":
+    
     unittest.main()
+
