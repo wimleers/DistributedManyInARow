@@ -1,3 +1,4 @@
+import time
 from DistributedGame.Game import Game
 
 class ManyInARow(object):
@@ -5,13 +6,9 @@ class ManyInARow(object):
     MOVE, CHAT, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
 
     def __init__(self, playerName,
-                 waitTime,
                  guiMoveCallback, guiChatCallback,
                  guiPlayerAddCallback, guiPlayerUpdateCallback, guiPlayerRemoveCallback,
                  guiCanMakeMoveCallback):
-        self.game = Game(playerName)
-        self.player = self.game.player
-
         # Callbacks.
         if not callable(guiMoveCallback):
             raise Exception
@@ -32,16 +29,55 @@ class ManyInARow(object):
         self.guiPlayerRemoveCallback = guiPlayerRemoveCallback
         self.guiCanMakeMoveCallback  = guiCanMakeMoveCallback
 
-        self.waitTime = waitTime
-        self.moveMessage = None
+        self.game                          = Game(playerName)
+        self.player                        = self.game.player
+        self.waitTime                      = None
+        self.moveMessage                   = None
+        self.numRows                       = None
+        self.numCols                       = None
+        self.startTime                     = None
+        self.winners                       = {}
         self.canMakeMoveAfterMutexAcquired = False
+        
+
+    def startGame(self, name, description, numRows, numCols, waitTime):
+        # Advertise game.
+        self.game.advertise(name, description)
+
+        # Settings for the game.
+        self.numRows   = numRows
+        self.numCols   = numCols
+        self.waitTime  = waitTime
+        self.startTime = time.time()
+
+        # Let the GUI know that moves may now be made.
         self._guiCanMakeMove()
         
+        
+    def joinGame(self, gameUUID):
+        # Join the game with the given UUID.
+        (startTime, winners) = self.game.join(gameUUID)
+
+        # Get the settings for the game.
+        self.numRows   = self.game.numRows
+        self.numCols   = self.game.numCols
+        self.waitTime  = self.game.waitTime
+        self.startTime = startTime
+        self.winners   = winners
+
+        # Let the GUI know that moves may now be made.        
+        self._guiCanMakeMove()
+
+
     def makeMove(self, col):
         self.moveMessage = {'type' : self.MOVE, 'col' : col}
         self.game.acquireMutex(self.mutexAcquiredCallback)
         timer = Timer(self.waitTime, self._guiCanMakeMove)
         timer.start()
+
+
+    def getHistory(self, minId=0):
+        return self.game.getHistory(minId)
 
 
     def mutexAcquiredCallback(self):
