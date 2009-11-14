@@ -6,13 +6,16 @@ class ManyInARow(object):
     MOVE, CHAT, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
 
     def __init__(self, playerName,
-                 guiMoveCallback, guiChatCallback,
+                 guiChatCallback,
+                 guiJoinedGameCallback,
                  guiPlayerAddCallback, guiPlayerUpdateCallback, guiPlayerRemoveCallback,
-                 guiCanMakeMoveCallback):
+                 guiMoveCallback, guiCanMakeMoveCallback,
+                 guiWinnerCallback,
+                 guiFinishedCallback):
         # Callbacks.
-        if not callable(guiMoveCallback):
-            raise Exception
         if not callable(guiChatCallback):
+            raise Exception
+        if not callable(guiJoinedGameCallback):
             raise Exception
         if not callable(guiPlayerAddCallback):
             raise Exception
@@ -20,14 +23,24 @@ class ManyInARow(object):
             raise Exception
         if not callable(guiPlayerRemoveCallback):
             raise Exception
+        if not callable(guiMoveCallback):
+            raise Exception
         if not callable(guiCanMakeMoveCallback):
             raise Exception
-        self.guiMoveCallback         = guiMoveCallback
+        if not callable(guiWinnerCallback):
+            raise Exception
+        if not callable(guiFinishedCallback):
+            raise Exception
+        
         self.guiChatCallback         = guiChatCallback
+        self.guiJoinedGameCallback   = guiJoinedGameCallback
         self.guiPlayerAddCallback    = guiPlayerAddCallback
         self.guiPlayerUpdateCallback = guiPlayerUpdateCallback
         self.guiPlayerRemoveCallback = guiPlayerRemoveCallback
+        self.guiMoveCallback         = guiMoveCallback
         self.guiCanMakeMoveCallback  = guiCanMakeMoveCallback
+        self.guiWinnerCallback       = guiWinnerCallback
+        self.guiFinishedCallback     = guiFinishedCallback
 
         self.game                          = Game(playerName)
         self.player                        = self.game.player
@@ -37,6 +50,8 @@ class ManyInARow(object):
         self.numCols                       = None
         self.startTime                     = None
         self.winners                       = {}
+        self.currentGoal                   = 4
+        self.finished                      = False
         self.canMakeMoveAfterMutexAcquired = False
         
 
@@ -56,14 +71,16 @@ class ManyInARow(object):
         
     def joinGame(self, gameUUID):
         # Join the game with the given UUID.
-        (startTime, winners) = self.game.join(gameUUID)
+        startTime = self.game.join(gameUUID)
 
         # Get the settings for the game.
         self.numRows   = self.game.numRows
         self.numCols   = self.game.numCols
         self.waitTime  = self.game.waitTime
         self.startTime = startTime
-        self.winners   = winners
+
+        # Let the GUI know we successfully joined a game.
+        self.guiJoinedGameCallback(self.numRows, self.numCols, self.startTime)
 
         # Let the GUI know that moves may now be made.        
         self._guiCanMakeMove()
@@ -101,9 +118,23 @@ class ManyInARow(object):
 
 
     def messageReceivedCallback(self, playerUUID, message):
-        # @Wim: ik heb paar aanpassinge gedaan aan volgende functies, hope you don't mind (BTW, playerUUID is toch UUID van de player die het bericht naar ons verstuurd heeft eh?)
         if message['type'] == self.MOVE:
             self.guiMoveCallback(playerUUID, message['col'])
+            # Actually make the move.
+            self._makeMove(playerUUID, message['col'])
+            # If this move result in the current goal, we have a winner! We
+            # should notify the GUI and mark this game as finished (if no
+            # larger "X in a row" is possible) or update the goal.
+            if self._isWinnerForXInARow(message['col'], self.currentGoal):
+                self.winners[self.currentGoal] = playerUUID
+                self.guiWinnerCallback(self.winners, self.currentGoal)
+                # Check if the game is finished or if we should move on to the
+                # next goal.
+                if self.currentGoal + 1 > max(self.numRows, self.numCols):
+                    self.finished = True
+                    self.guiFinishedCallback(self.winners)
+                else:
+                    self.currentGoal += 1
         elif message['type'] == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
         elif message['type'] == self.PLAYER_ADD:
@@ -112,3 +143,8 @@ class ManyInARow(object):
             self.guiPlayerUpdateCallback(playerUUID, message['player'])
         elif message['type'] == self.PLAYER_REMOVE:
             self.guiPlayerRemoveCallback(playerUUID)
+
+
+    def _isWinnerForXInARow(self, col, goal):
+        """Check if the last piece at the given column matched the goal."""
+        pass
