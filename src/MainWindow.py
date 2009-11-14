@@ -2,6 +2,7 @@ from PyQt4 import QtGui, QtCore
 import sys
 from GameWidget import GameWidget
 from PlayerAddWidget import PlayerAddWidget
+from NetworkLobbyWidget import NetworkLobbyWidget
 import vieropeenrij
 
 class MainWindow(QtGui.QMainWindow):
@@ -11,14 +12,23 @@ class MainWindow(QtGui.QMainWindow):
         self.createLayout()
         self.createMenu()
         self.showMaximized()
-        startDialog = StartDialog(self)
-        QtCore.QObject.connect(startDialog, QtCore.SIGNAL("startNewGame()"), self.createNewGame)
-        startDialog.exec_()
+        playerAddWidget = PlayerAddWidget(self)
+        self.localPlayerName = playerAddWidget.getPlayerInfo()
         
     def createLayout(self):
-        self.gridLayout = QtGui.QGridLayout()
+        #Left side of screen: List of availabe games
+        #Right side of screen: TabWidget showing all the games in which the player is participating
+        self.horizontalLayout = QtGui.QHBoxLayout()
+        self.mainWidget = QtGui.QWidget(self)
+        self.mainWidget.setLayout(self.horizontalLayout)
+        
+        self.networkLobby = NetworkLobbyWidget(self)
+        QtCore.QObject.connect(self.networkLobby, QtCore.SIGNAL("joinGameClicked(PyQt_PyObject, QString)"), self.joinGame)
         self.tabWidget = QtGui.QTabWidget(self)
-        self.setCentralWidget(self.tabWidget)        
+        
+        self.horizontalLayout.addWidget(self.networkLobby, 2)
+        self.horizontalLayout.addWidget(self.tabWidget, 15)
+        self.setCentralWidget(self.mainWidget)
         
     def createMenu(self):
         gameMenu = QtGui.QMenu("&Game", self)
@@ -33,39 +43,17 @@ class MainWindow(QtGui.QMainWindow):
     def createNewGame(self):
         #TODO: implement. Start a new game using interface for network functionality
         newGameDialog = NewGameDialog(self)
-        (gameName, gameComment, inARow, numRows, numCols) = newGameDialog.getGameInfo()
+        (gameName, gameComment, numRows, numCols, waitTime) = newGameDialog.getGameInfo()
         if(gameName != None):
-            self.tabWidget.addTab(GameWidget(numRows, numCols, inARow, self.tabWidget), gameName)
+            self.tabWidget.addTab(GameWidget(GameWidget.CREATE_NEW_GAME, {'rows' : numRows, 'cols' : numCols, 'name' : gameName, 'comment' : gameComment, 'waitTime' : waitTime}, self.localPlayerName, self.tabWidget), gameName)
+    
+    def joinGame(self, UUID, name):
+        # Is called when the user chooses to join a network game. This functions makes sure a new tab is created and the game joining is intiated. 
+        # Create the new tab
+        newGameWidget = GameWidget(UUID, self.localPlayerName, self)
         
-    def joinGame(self):
-        #TODO: implement. Launch dialog asking which game to join
-        x = 1
         
-class StartDialog(QtGui.QDialog):
-    def __init__(self, win_parent = None):
-        QtGui.QDialog.__init__(self, win_parent)
-        
-        self.createLayout()
-        
-    def createLayout(self):
-        self.layout = QtGui.QHBoxLayout(self)
-        startNewGameButton = QtGui.QPushButton("Start a game", self)
-        startNewGameButton.clicked.connect(self.startNewGameClicked)
-        joinGameButton = QtGui.QPushButton("Join a game", self)
-        joinGameButton.clicked.connect(self.joinGameClicked)
-        self.layout.addWidget(startNewGameButton)
-        self.layout.addWidget(joinGameButton)
-        
-    def startNewGameClicked(self):
-        self.emit(QtCore.SIGNAL("startNewGame()"))
-        self.accept()
-        
-    def joinGameClicked(self):
-        self.emit(QtCore.SIGNAL("joinGame()"))
-        self.accept()
-        
-        #TODO: buttons moeten signal nog doorgeven aan mainwindow zodat correct venster geopend kan worden
-        
+
 class NewGameDialog(QtGui.QDialog):
     def __init__(self, win_parent = None):
         QtGui.QDialog.__init__(self, win_parent)
@@ -79,7 +67,7 @@ class NewGameDialog(QtGui.QDialog):
         self.exec_()
         if(self.result() == 1):
             #if the dialog was accepted (start game was clicked)
-            return (self.gameName, self.gameComment, self.inARow, self.numRows, self.numCols)
+            return (self.gameName, self.gameComment, self.numRows, self.numCols, self.waitTime)
         else:
             return (None, None, None, None, None)
         
@@ -90,7 +78,7 @@ class NewGameDialog(QtGui.QDialog):
         label3 = QtGui.QLabel("Comment: ", self)
         label4 = QtGui.QLabel("# Rows: ", self)
         label5 = QtGui.QLabel("# Cols: ", self)
-        label6 = QtGui.QLabel("# In a row: ", self)
+        label6 = QtGui.QLabel("Time between moves (secs)", self)
         self.gameEdit = QtGui.QLineEdit(self)
         self.commentEdit = QtGui.QLineEdit(self)
         self.numRowEdit = QtGui.QSpinBox(self)
@@ -101,10 +89,10 @@ class NewGameDialog(QtGui.QDialog):
         self.numColEdit.setMinimum(1)
         self.numColEdit.setMaximum(30)
         self.numColEdit.setValue(1)
-        self.inARowEdit = QtGui.QSpinBox(self)
-        self.inARowEdit.setMinimum(2)
-        self.inARowEdit.setMaximum(30)
-        self.inARowEdit.setValue(2)
+        self.waitTimeEdit = QtGui.QSpinBox(self)
+        self.waitTimeEdit.setMinimum(1)
+        self.waitTimeEdit.setMaximum(100)
+        self.waitTimeEdit.setValue(1)
         startButton = QtGui.QPushButton("&Start", self)
         startButton.clicked.connect(self.paramsSet)
         cancelButton = QtGui.QPushButton("&Cancel", self)
@@ -120,16 +108,16 @@ class NewGameDialog(QtGui.QDialog):
         gridLayout.addWidget(self.commentEdit, 2, 1)
         gridLayout.addWidget(self.numRowEdit, 3, 1)
         gridLayout.addWidget(self.numColEdit, 4, 1)
-        gridLayout.addWidget(self.inARowEdit, 5, 1)
+        gridLayout.addWidget(self.waitTimeEdit, 5, 1)
         gridLayout.addWidget(startButton, 6, 0)
         gridLayout.addWidget(cancelButton, 6, 1)
         
     def paramsSet(self):
         self.gameName = self.gameEdit.text()
         self.gameComment = self.gameEdit.text()
-        self.inARow = self.inARowEdit.value()
         self.numRows = self.numRowEdit.value()
         self.numCols = self.numColEdit.value()
+        self.waitTime = self.waitTimeEdit.value()
         if(self.gameName == "" or self.gameComment == ""):
             QtGui.QMessageBox.warning(self, "Incomplete", "Not all values were set correctly.")
         else:

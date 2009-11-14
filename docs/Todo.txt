@@ -1,6 +1,9 @@
 Gui:    - pauze inlassen tussen 2 zetten
         - preview van blokje laten zien ( waar het zal neerkomen ) -->DONE
-        - meerdere games (tabs)
-        - chat per game
+        - meerdere games (tabs) --> DONE
+        - chat per game --> DONE
         - game statistics: play time, welke players, kleur van players, ...
         
+        - log in apart widget
+        - opmaak zie papier Wim
+        - 

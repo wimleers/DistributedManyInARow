@@ -101,8 +101,9 @@ class ManyInARow(object):
 
 
     def messageReceivedCallback(self, playerUUID, message):
+        # @Wim: ik heb paar aanpassinge gedaan aan volgende functies, hope you don't mind (BTW, playerUUID is toch UUID van de player die het bericht naar ons verstuurd heeft eh?)
         if message['type'] == self.MOVE:
-            self.guiMoveCallback(message['col'])
+            self.guiMoveCallback(playerUUID, message['col'])
         elif message['type'] == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
         elif message['type'] == self.PLAYER_ADD:
