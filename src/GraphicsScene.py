@@ -19,6 +19,33 @@ class GraphicsScene(QtGui.QGraphicsScene):
         
         self.setupDefaultBoard(nrRows, nrCols)
         
+        self.waitText = QtGui.QGraphicsTextItem()
+        self.waitText = self.addText("...Please wait...")
+        font = QtGui.QFont()
+        font.setBold(True)
+        font.setFamily("Comic Sans MS")
+        font.setPointSize(30)
+        self.waitText.setFont(font)
+        self.waitText.setDefaultTextColor(QtGui.QColor(0,0,255))
+        sceneSize = self.sceneRect()
+        midx = (sceneSize.width() / 2) - (self.waitText.boundingRect().width() / 2)
+        midy = (sceneSize.height() / 2) - (self.waitText.boundingRect().height() / 2)
+        self.waitText.setPos(midx, midy)
+        self.waitText.hide()
+        
+        self.rejectClicks = False
+
+        
+    def block(self):
+        self.setForegroundBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 180)))
+        self.waitText.show()
+        self.rejectClicks = True
+    
+    def unblock(self):
+        self.setForegroundBrush(QtCore.Qt.NoBrush)
+        self.waitText.hide()
+        self.rejectClicks = False
+        
     def setupDefaultBoard(self, nrRows, nrCols):
         self.gameBoard = [[QtGui.QGraphicsRectItem for i in xrange(nrRows)] for j in xrange(nrCols)]
         for i in range(nrCols):
@@ -26,6 +53,8 @@ class GraphicsScene(QtGui.QGraphicsScene):
                 rectItem = QtGui.QGraphicsRectItem(i*SIZE, j*SIZE, SIZE, SIZE)
                 self.addItem(rectItem)
                 self.gameBoard[i][j] = rectItem
+                
+        self.setSceneRect(-10, -10, nrCols * SIZE +20, nrRows * SIZE + 20)
         
     
     def makeMove(self, xpos, ypos, color):
@@ -73,19 +102,22 @@ class GraphicsScene(QtGui.QGraphicsScene):
         self.addItem(self.tempItem)
         
     def mousePressEvent(self, event):
-        item = self.itemAt(event.scenePos())
-        for i in range(self.nrCols):
-            for j in range(self.nrRows):
-                if(self.gameBoard[i][j] == item):
-                    self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
+        # Only accept a move when the gameboard is enabled
+        if(not self.rejectClicks):
+            item = self.itemAt(event.scenePos())
+            for i in range(self.nrCols):
+                for j in range(self.nrRows):
+                    if(self.gameBoard[i][j] == item):
+                        self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
                     
     def mouseDoubleClickEvent(self, event):
         #this enables the user to click rapidly
-        item = self.itemAt(event.scenePos())
-        for i in range(self.nrCols):
-            for j in range(self.nrRows):
-                if(self.gameBoard[i][j] == item):
-                    self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
+        if(not self.rejectClicks):
+            item = self.itemAt(event.scenePos())
+            for i in range(self.nrCols):
+                for j in range(self.nrRows):
+                    if(self.gameBoard[i][j] == item):
+                        self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
                     
     def mouseMoveEvent(self, event):
         item = self.itemAt(event.scenePos())

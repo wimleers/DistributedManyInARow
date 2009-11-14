@@ -24,9 +24,17 @@ class MainWindow(QtGui.QMainWindow):
         
         self.networkLobby = NetworkLobbyWidget(self)
         QtCore.QObject.connect(self.networkLobby, QtCore.SIGNAL("joinGameClicked(PyQt_PyObject, QString)"), self.joinGame)
+        label = QtGui.QLabel("Active games: ", self)
+        addButton = QtGui.QPushButton("Add", self)
+        addButton.clicked.connect(self.createNewGame)
+        self.leftLayout = QtGui.QVBoxLayout()
+        self.leftLayout.addWidget(label)
+        self.leftLayout.addWidget(self.networkLobby)
+        self.leftLayout.addWidget(addButton)
+        
         self.tabWidget = QtGui.QTabWidget(self)
         
-        self.horizontalLayout.addWidget(self.networkLobby, 2)
+        self.horizontalLayout.addLayout(self.leftLayout, 2)
         self.horizontalLayout.addWidget(self.tabWidget, 15)
         self.setCentralWidget(self.mainWidget)
         
@@ -51,7 +59,6 @@ class MainWindow(QtGui.QMainWindow):
         # Is called when the user chooses to join a network game. This functions makes sure a new tab is created and the game joining is intiated. 
         # Create the new tab
         newGameWidget = GameWidget(UUID, self.localPlayerName, self)
-        
         
 
 class NewGameDialog(QtGui.QDialog):

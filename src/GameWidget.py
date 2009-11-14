@@ -17,9 +17,9 @@ class GameWidget(QtGui.QWidget):
         
         # Create a ManyInARow instance and try to join the game
         # Todo: add callback to set the number of rows and colums (self.gameInfoCallBack)
-        self.manyInARow = ManyInARow(playerName, self.moveCallBack, self.chatCallBack,
-                                     self.addPlayerCallBack, self.updatePlayerCallBack,
-                                     self.removePlayerCallBack, self.enableClicks)
+        #self.manyInARow = ManyInARow(playerName, self.moveCallBack, self.chatCallBack,
+        #                             self.addPlayerCallBack, self.updatePlayerCallBack,
+        #                             self.removePlayerCallBack, self.enableClicks)
         
         if(type == self.CREATE_NEW_GAME):
             self.nrRows = info['rows']
@@ -27,12 +27,14 @@ class GameWidget(QtGui.QWidget):
             self.gameName = info['name']
             comment = info['comment']
             waitTime = info['waitTime']
-            self.manyInARow.startGame(self.gameName, comment, self.nrRows, self.nrCols, waitTime)
+            #self.manyInARow.startGame(self.gameName, comment, self.nrRows, self.nrCols, waitTime)
             
             
         if(type == self.JOIN_GAME):
             self.gameUUID = info
-            self.manyInARow.joinGame(self.gameUUID)
+            #self.manyInARow.joinGame(self.gameUUID)
+            
+        self.createLayout()
         
         
     def getGameUUID(self):
@@ -50,7 +52,7 @@ class GameWidget(QtGui.QWidget):
     def makeMove(self, column):
         # Passes the move to the class coordinating the game (ManyInARow)
         print "Dropped in column: " + str(column)
-        
+        self.scene.block()
         self.manyInARow.makeMove(column)
     
     # Callbacks:
@@ -63,7 +65,7 @@ class GameWidget(QtGui.QWidget):
     
     
     def enableClicks(self):
-        pass
+        self.scene.unblock()
     
     
     def addPlayerCallBack(self, playerUUID, newPlayer):
