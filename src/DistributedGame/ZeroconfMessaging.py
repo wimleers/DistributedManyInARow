@@ -57,8 +57,13 @@ class ZeroconfMessaging(MulticastMessaging):
         if not callable(peerServiceUpdateCallback):
             raise InvalidCallbackError, "peer service update callback"
 
-        # TODO: allow port to be None, in which case a free port should be
-        # found automatically.
+        # If port is set to None, then pick a random free port automatically.
+        if port is None:
+            self.socket = socket.socket()
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.socket.bind(('', 0))
+            (ip, port) = self.socket.getsockname()
+            self.port = port
 
         # Callbacks.
         self.serviceRegistrationCallback      = serviceRegistrationCallback
@@ -543,13 +548,10 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     # Initialize ZeroconfMessaging.
-    port = 4444
-    if options.listenOnly:
-        port = 4445
     z = ZeroconfMessaging(serviceName = platform.node(),
                           serviceType = '_manyinarow._tcp',
                           protocolVersion = 1,
-                          port = port,
+                          port = None,
                           serviceRegistrationCallback=serviceRegistrationCallback,
                           serviceRegistrationErrorCallback=serviceRegistrationErrorCallback,
                           peerServiceDiscoveryCallback=peerServiceDiscoveryCallback,
