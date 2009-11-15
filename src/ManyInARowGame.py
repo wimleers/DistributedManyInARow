@@ -1,36 +1,43 @@
 import time
-from DistributedGame.Game import Game
+import DistributedGame
 
-class ManyInARow(object):
 
-    MOVE, CHAT, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
+class ManyInARowGameError(Exception): pass
+class InvalidCallbackError(ManyInARowGameError): pass
+class OneToManyServiceError(ManyInARowGameError): pass
 
-    def __init__(self, playerName,
+
+class ManyInARowGame(object):
+
+    MOVE, CHAT, JOIN, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
+
+    def __init__(self, service, player,
                  guiChatCallback,
                  guiJoinedGameCallback,
                  guiPlayerAddCallback, guiPlayerUpdateCallback, guiPlayerRemoveCallback,
                  guiMoveCallback, guiCanMakeMoveCallback,
                  guiWinnerCallback,
                  guiFinishedCallback):
+
         # Callbacks.
         if not callable(guiChatCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiChatCallback"
         if not callable(guiJoinedGameCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiJoinedGameCallback"
         if not callable(guiPlayerAddCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiPlayerAddCallback"
         if not callable(guiPlayerUpdateCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiPlayerUpdateCallback"
         if not callable(guiPlayerRemoveCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiPlayerRemoveCallback"
         if not callable(guiMoveCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiMoveCallback"
         if not callable(guiCanMakeMoveCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiCanMakeMoveCallback"
         if not callable(guiWinnerCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiWinnerCallback"
         if not callable(guiFinishedCallback):
-            raise Exception
+            raise InvalidCallbackError, "guiFinishedCallback"
         
         self.guiChatCallback         = guiChatCallback
         self.guiJoinedGameCallback   = guiJoinedGameCallback
@@ -42,47 +49,78 @@ class ManyInARow(object):
         self.guiWinnerCallback       = guiWinnerCallback
         self.guiFinishedCallback     = guiFinishedCallback
 
-        self.game                          = Game(playerName)
-        self.player                        = self.game.player
-        self.waitTime                      = None
+        # Game settings
+        self.name        = None
+        self.description = None
+        self.numRows     = None
+        self.numCols     = None
+        self.waitTime    = None
+        self.startTime   = None        
+
+        # Game state.
         self.moveMessage                   = None
-        self.numRows                       = None
-        self.numCols                       = None
-        self.startTime                     = None
         self.winners                       = {}
         self.currentGoal                   = 4
         self.finished                      = False
         self.canMakeMoveAfterMutexAcquired = False
-        
 
-    def startGame(self, name, description, numRows, numCols, waitTime):
-        # Advertise game.
-        self.game.advertise(name, description)
+        # Create the underlying distributed game and pass it the Player object.
+        self.service = service
+        self.player  = player
+        self.game    = DistributedGame.Game.Game(self.service, self.player)
 
-        # Settings for the game.
-        self.numRows   = numRows
-        self.numCols   = numCols
-        self.waitTime  = waitTime
-        self.startTime = time.time()
 
+    def __del__(self):
+        self.service.leaveGame(self.game.UUID)
+
+
+    def host(self, name, description, numRows, numCols, waitTime):
+        # Store the game settings.
+        self.name        = name
+        self.description = description
+        self.numRows     = numRows
+        self.numCols     = numCols
+        self.waitTime    = waitTime
+        self.startTime   = time.time()
+
+        # Advertise the game.
+        self.service.advertiseGame(self.game.UUID,
+                                   self.name, self.description,
+                                   self.numRows, self.numCols,
+                                   self.waitTime, self.startTime,
+                                   self.player)
+    
         # Let the GUI know that moves may now be made.
         self._guiCanMakeMove()
         
         
-    def joinGame(self, gameUUID):
-        # Join the game with the given UUID.
-        startTime = self.game.join(gameUUID)
+    def join(self, gameUUID):
+        # Update the UUID of the DistributedGame.Game that was created.
+        self.game.UUID = gameUUID
 
-        # Get the settings for the game.
-        self.numRows   = self.game.numRows
-        self.numCols   = self.game.numCols
-        self.waitTime  = self.game.waitTime
-        self.startTime = startTime
+        # Store the game settings.
+        game = self.service.games[gameUUID]
+        self.name        = game['name']
+        self.description = game['description']
+        self.numRows     = game['numRows']
+        self.numCols     = game['numCols']
+        self.waitTime    = game['waitTime']
+        self.startTime   = game['startTime']
 
-        # Let the GUI know we successfully joined a game.
-        self.guiJoinedGameCallback(self.numRows, self.numCols, self.startTime)
+        # Let the other players in this game now we're joining the game. No
+        # confirmation is necessary.
+        self.game.sendMessage({'type' : self.JOIN, 'player' : self.player})
 
-        # Let the GUI know that moves may now be made.        
+        # Also let the service know we've joined the game: this is necessary
+        # for the game listing.
+        self.service.joinGame(gameUUID, self.player)
+
+        # Let the GUI know we successfully joined a game (because no join)
+        self.guiJoinedGameCallback(self.name, self.description, self.numRows, self.numCols, self.waitTime, self.startTime)
+
+        # Let the GUI know that moves may now be made.
+        # TODO: the message history must be retrieved completely before the
+        # user may start making moves.
         self._guiCanMakeMove()
 
 
@@ -114,7 +152,7 @@ class ManyInARow(object):
         
 
     def sendChatMessage(self, message):
-        self.game.sendMessage({'type' : self.CHAT,'message' : message})
+        self.game.sendMessage({'type' : self.CHAT, 'message' : message})
 
 
     def messageReceivedCallback(self, playerUUID, message):
@@ -138,11 +176,17 @@ class ManyInARow(object):
         elif message['type'] == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
         elif message['type'] == self.PLAYER_ADD:
-            self.guiPlayerAddCallback(playerUUID, message['player'])
+            player = message['player']
+            self.game.players[playerUUID] = player
+            self.guiPlayerAddCallback(playerUUID, player)
         elif message['type'] == self.PLAYER_UPDATE:
-            self.guiPlayerUpdateCallback(playerUUID, message['player'])
+            player = message['player']
+            self.game.players[playerUUID] = player
+            self.guiPlayerUpdateCallback(player.UUID, player)
         elif message['type'] == self.PLAYER_REMOVE:
-            self.guiPlayerRemoveCallback(playerUUID)
+            player = message['player']
+            del self.game.players[playerUUID]
+            self.guiPlayerRemoveCallback(player.UUID)
 
 
     def _isWinnerForXInARow(self, col, goal):

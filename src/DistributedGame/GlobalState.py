@@ -15,7 +15,7 @@ from VectorClock import VectorClock
 class GlobalStateError(Exception): pass
 class ClockError(GlobalStateError): pass
 class MessageError(GlobalStateError): pass
-class MulticastMessagingClassError(GlobalStateError): pass
+class OneToManyServiceError(GlobalStateError): pass
 
 
 # TODO: support to detect crashed processes (send a message every peerWaitingTime time and require answer within peerWaitingTime, if not: process crashed)
@@ -44,11 +44,11 @@ class GlobalState(threading.Thread):
     used for persistent storage.
     """
 
-    def __init__(self, sessionUUID, senderUUID, multicast, dbFile="./globalstate.sqlite", peerWaitingTime=30, messageWaitingTime=2):
+    def __init__(self, service, sessionUUID, senderUUID, dbFile="./globalstate.sqlite", peerWaitingTime=30, messageWaitingTime=2):
         # MulticastMessaging subclass.
-        if not isinstance(multicast, MulticastMessaging):
-            raise MulticastMessagingClassError
-        self.multicast = multicast
+        if not isinstance(service, Service.OneToManyService):
+            raise OneToManyServiceError
+        self.service = service
 
         # Identifiers.
         self.sessionUUID = sessionUUID
@@ -162,6 +162,8 @@ class GlobalState(threading.Thread):
     def sendMessage(self, message):
         """Enqueue a message to be sent."""
         with self.lock:
+            packet = {}
+            packet[self.sessionUUID] = message
             self.outbox.put(message)
 
 
@@ -174,7 +176,7 @@ class GlobalState(threading.Thread):
 
     def _sendMessage(self, message):
         """Store a message in the global state and actually send it by passing
-        it on to the multicast outbox.
+        it on to the service outbox.
         """
 
         # Increment the vector clock for our message.
