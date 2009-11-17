@@ -1,10 +1,12 @@
-
+import random
+import time
 
 class Player:
-    def __init__ (self, name, colour):
+    def __init__ (self, name, colour, human=True):
         self.name = name
         self.colour = colour
         self.status = 'active'
+        self.human = human
     def __str__ (self):
         return 'Player ' + self.name + ' with colour ' + self.colour + ' and status: ' + self.status
 
@@ -34,6 +36,9 @@ class Players:
     
     def getCurrentPlayerColor(self):
         return self.players[self.currentPlayer].colour
+
+    def getCurrentPlayerHuman(self):
+        return self.players[self.currentPlayer].human
         
     def getPlayerColor(self, name):
         for player in self.players:
@@ -79,6 +84,73 @@ class Field:
             return self.values[y][x] == -1
         else:
             return False
+
+    def undoMove (self, x, y):
+        self.values[y][x] = -1
+
+    def getBestMove (self, players, inARow):
+        for i in range (self.cols):
+            #check if we can make a winning move
+            y = self.makeMove (i, players.currentPlayer)
+            if y != -1 and self.checkWin (i, y, inARow):
+                self.undoMove (i, y)
+                return i
+            self.undoMove (i, y)
+
+        for i in range (len(players.players)):
+            if i != players.currentPlayer:
+                for j in range (self.cols):
+                    #check if another player can make a winning move
+                    y = self.makeMove (j, i)
+                    if y != -1 and self.checkWin (j, y, inARow):
+                        self.undoMove (j, y)
+                        return j
+                    self.undoMove (j, y)
+
+        random.seed(time.time())
+        move = random.randint(0, self.cols-1)
+        for i in range (self.cols):
+            #check if we can make a winning move
+            y = self.makeMove (i, players.currentPlayer)
+            if y != -1 and self.checkNeighbour (i, y):
+                self.undoMove (i, y)
+                return i
+            self.undoMove (i, y)
+
+        return move
+        
+    def checkNeighbour (self, x, y):
+        if x > 0:
+            if self.values[y][x-1] == self.values[y][x]:
+                return True
+
+            if y > 0:
+                if self.values[y-1][x-1] == self.values[y][x]:
+                    return True
+
+            if y < self.rows - 1:
+                if self.values[y+1][x-1] == self.values[y][x]:
+                    return True
+
+        if x < self.cols - 1:
+            if self.values[y][x+1] == self.values[y][x]:
+                return True
+
+            if y < self.rows - 1:
+                if self.values[y+1][x+1] == self.values[y][x]:
+                    return True
+
+            if y > 0:
+                if self.values[y-1][x+1] == self.values[y][x]:
+                    return True
+
+        if y < self.rows - 1:
+            if self.values[y+1][x] == self.values[y][x]:
+                return True
+
+        return False
+
+        
 
     def checkWin (self, x, y, inARow):
         if (self.values[y][x] != -1):
@@ -182,11 +254,16 @@ class game:
         self.field = Field(10, 15)
         self.players.addPlayer (Player(raw_input('Name for player 1: '), 'blue'))
         self.players.addPlayer (Player(raw_input('Name for player 2: '), 'red'))
+        self.players.addPlayer (Player('AI', 'red', human=False))
     def play(self):
         won = False
         while not won:
             print self.field
-            move = int(raw_input(self.players.getCurrentPlayerName() + '\'s turn! Give the x coordinate for the next move: '))
+            if self.players.getCurrentPlayerHuman():
+                move = int(raw_input(self.players.getCurrentPlayerName() + '\'s turn! Give the x coordinate for the next move: '))
+            else:
+                move = self.field.getBestMove(self.players, self.inARow)
+                print move
             valid = self.field.makeMove (move, self.players.currentPlayer)
     
             while valid == -1:
@@ -251,4 +328,4 @@ print field
 print field.checkWin (10, 5, 5)
 """
 
-#game().play()
+game().play()
