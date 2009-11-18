@@ -2,7 +2,7 @@ from PyQt4 import QtGui, QtCore
 from PyQt4 import uic
 from GraphicsScene import GraphicsScene
 from LogWidget import LogWidget
-from ManyInARow import ManyInARow
+from ManyInARowGame import ManyInARowGame
 import vieropeenrij
 
 class GameWidget(QtGui.QWidget):
@@ -15,9 +15,9 @@ class GameWidget(QtGui.QWidget):
         # If type is JOIN_GAME, info contains the UUID of the game the user wishes to join.
         QtGui.QWidget.__init__(self, win_parent)
         
-        # Create a ManyInARow instance and try to join the game
+        # Create a ManyInARowGame instance and try to join the game
         # Todo: add callback to set the number of rows and colums (self.gameInfoCallBack)
-        #self.manyInARow = ManyInARow(playerName, self.moveCallBack, self.chatCallBack,
+        #self.manyInARow = ManyInARowGame(playerName, self.moveCallBack, self.chatCallBack,
         #                             self.addPlayerCallBack, self.updatePlayerCallBack,
         #                             self.removePlayerCallBack, self.enableClicks)
         
@@ -50,7 +50,7 @@ class GameWidget(QtGui.QWidget):
     
     
     def makeMove(self, column):
-        # Passes the move to the class coordinating the game (ManyInARow)
+        # Passes the move to the class coordinating the game (ManyInARowGame)
         print "Dropped in column: " + str(column)
         self.scene.block()
         self.manyInARow.makeMove(column)
