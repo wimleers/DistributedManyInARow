@@ -14,8 +14,9 @@ class Service(threading.Thread):
         if not issubclass(multicastMessagingClass, MulticastMessaging):
             raise MulticastMessagingClassError
         self.multicast = multicastMessagingClass(serviceName, serviceType, protocolVersion, port,
-                                                 serviceRegistrationCallback=self._serviceRegistrationCallback,
-                                                 serviceRegistrationErrorCallback=self._serviceRegistrationErrorCallback,
+                                                 serviceRegisteredCallback=self._serviceRegisteredCallback,
+                                                 serviceRegistrationFailedCallback=self._serviceRegistrationFailedCallback,
+                                                 serviceUnregisteredCallback=self._serviceUnregisteredCallback,
                                                  peerServiceDiscoveryCallback=self._peerServiceDiscoveryCallback,
                                                  peerServiceRemovalCallback=self._peerServiceRemovalCallback,
                                                  peerServiceUpdateCallback=self._peerServiceUpdateCallback)
@@ -39,13 +40,18 @@ class Service(threading.Thread):
         self.multicast.kill()
 
 
-    def _serviceRegistrationCallback(self, sdRef, flags, errorCode, name, regtype, domain):
-        print "SERVICE REGISTRATION CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s" % (sdRef.fileno(), flags, errorCode, name, regtype, domain)
+    def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain):
+        print "SERVICE REGISTERED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s" % (sdRef.fileno(), flags, errorCode, name, regtype, domain)
         raise NotImplemented
 
 
-    def _serviceRegistrationErrorCallback(self, sdRef, flags, errorCode, errorMessage, name, regtype, domain):
-        print "SERVICE REGISTRATION ERROR CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, errorMessage=%s, name=%s, regtype=%s, domain=%s" % (sdRef, flags, errorCode, errorMessage, name, regtype, domain)
+    def _serviceRegistrationFailedCallback(self, sdRef, flags, errorCode, errorMessage, name, regtype, domain):
+        print "SERVICE REGISTRATION FAILED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, errorMessage=%s, name=%s, regtype=%s, domain=%s" % (sdRef, flags, errorCode, errorMessage, name, regtype, domain)
+        raise NotImplemented
+
+
+    def _serviceUnregisteredCallback(self, serviceName, serviceType, port):
+        print "SERVICE UNREGISTERED CALLBACK FIRED, params: serviceName=%s, serviceType=%s, port=%d" % (serviceName, serviceType, port)
         raise NotImplemented
 
 

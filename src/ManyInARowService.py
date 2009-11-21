@@ -12,7 +12,7 @@ class ManyInARowService(OneToManyService):
     MOVE, CHAT, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
 
     def __init__(self,
-                guiServiceRegisteredCallback, guiServiceRegistrationFailedCallback,
+                guiServiceRegisteredCallback, guiServiceRegistrationFailedCallback, guiServiceUnregisteredCallback,
                 guiPeerServiceDiscoveredCallback, guiPeerServiceRemovedCallback,
                 guiGameAddedCallback, guiGameUpdatedCallback, guiGameEmptyCallback):
         # Call parent constructor with appropriate parameters.
@@ -26,6 +26,8 @@ class ManyInARowService(OneToManyService):
             raise InvalidCallbackError, "guiServiceRegisteredCallback"
         if not callable(guiServiceRegistrationFailedCallback):
             raise InvalidCallbackError, "guiServiceRegistrationFailedCallback"
+        if not callable(guiServiceUnregisteredCallback):
+            raise InvalidCallbackError, "guiServiceUnregisteredCallback"
         if not callable(guiPeerServiceDiscoveredCallback):
             raise InvalidCallbackError, "guiPeerServiceDiscoveredCallback"
         if not callable(guiPeerServiceRemovedCallback):
@@ -33,6 +35,7 @@ class ManyInARowService(OneToManyService):
 
         self.guiServiceRegisteredCallback         = guiServiceRegisteredCallback
         self.guiServiceRegistrationFailedCallback = guiServiceRegistrationFailedCallback
+        self.guiServiceUnregisteredCallback       = guiServiceUnregisteredCallback
         self.guiPeerServiceDiscoveredCallback     = guiPeerServiceDiscoveredCallback
         self.guiPeerServiceRemovedCallback        = guiPeerServiceRemovedCallback
 
@@ -40,23 +43,27 @@ class ManyInARowService(OneToManyService):
         self.games = {}
 
 
-    def _serviceRegistrationCallback(self, sdRef, flags, errorCode, name, regtype, domain):
-        self.guiServiceRegisteredCallback(name)
-  
-  
-    def _serviceRegistrationErrorCallback(sdRef, flags, errorCode, errorMessage, name, regtype, domain):
+    def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain, port):
+        self.guiServiceRegisteredCallback(name, regtype, port)
+
+
+    def _serviceRegistrationFailedCallback(self, sdRef, flags, errorCode, errorMessage, name, regtype, domain):
         self.guiServiceRegistrationFailedCallback(name, errorCode, errorMessage)
-  
-  
-    def _peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
+
+
+    def _serviceUnregisteredCallback(self, serviceName, serviceType, port):
+        self.guiServiceUnregisteredCallback(serviceName, serviceType, port)
+
+
+    def _peerServiceDiscoveryCallback(self, serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         self.guiPeerServiceDiscoveredCallback(serviceName, interfaceIndex, ip, port)
-  
-  
-    def _peerServiceRemovalCallback(serviceName, interfaceIndex):
+
+
+    def _peerServiceRemovalCallback(self, serviceName, interfaceIndex):
         self.guiPeerServiceDiscoveredCallback(serviceName, interfaceIndex)
-  
-  
-    def _peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
+
+
+    def _peerServiceUpdateCallback(self, serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         pass
 
 
@@ -163,3 +170,6 @@ class ManyInARowService(OneToManyService):
 
             # 20 refreshes per second is plenty.
             time.sleep(0.05)
+
+        # Kill the underlying MulticastMessaging object.
+        self.multicast.kill()

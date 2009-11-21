@@ -1,5 +1,5 @@
 import time
-import DistributedGame
+from DistributedGame.Game import Game
 
 
 class ManyInARowGameError(Exception): pass
@@ -9,7 +9,7 @@ class OneToManyServiceError(ManyInARowGameError): pass
 
 class ManyInARowGame(object):
 
-    MOVE, CHAT, JOIN, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
+    MOVE, CHAT, JOIN, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(6)
 
     def __init__(self, service, player,
                  guiChatCallback,
@@ -67,7 +67,7 @@ class ManyInARowGame(object):
         # Create the underlying distributed game and pass it the Player object.
         self.service = service
         self.player  = player
-        self.game    = DistributedGame.Game.Game(self.service, self.player)
+        self.game    = Game(self.service, self.player)
 
 
     def __del__(self):

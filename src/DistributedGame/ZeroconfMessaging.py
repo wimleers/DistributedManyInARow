@@ -39,8 +39,9 @@ def curry(_curried_func, *args, **kwargs):
 class ZeroconfMessaging(MulticastMessaging):
 
     def __init__(self, serviceName, serviceType, protocolVersion=1, port=None,
-                 serviceRegistrationCallback=None,
-                 serviceRegistrationErrorCallback=None,
+                 serviceRegisteredCallback=None,
+                 serviceRegistrationFailedCallback=None,
+                 serviceUnregisteredCallback=None,
                  peerServiceDiscoveryCallback=None,
                  peerServiceRemovalCallback=None,
                  peerServiceUpdateCallback=None,
@@ -48,10 +49,12 @@ class ZeroconfMessaging(MulticastMessaging):
         super(ZeroconfMessaging, self).__init__(serviceName, serviceType)
 
         # Ensure the callbacks are valid.
-        if not callable(serviceRegistrationCallback):
-            raise InvalidCallbackError, "service registration callback"
-        if not callable(serviceRegistrationErrorCallback):
-            raise InvalidCallbackError, "service registration error callback"
+        if not callable(serviceRegisteredCallback):
+            raise InvalidCallbackError, "service registered callback"
+        if not callable(serviceRegistrationFailedCallback):
+            raise InvalidCallbackError, "service registration failed callback"
+        if not callable(serviceUnregisteredCallback):
+            raise InvalidCallbackError, "service unregistered callback"
         if not callable(peerServiceDiscoveryCallback):
             raise InvalidCallbackError, "peer service discovery callback"
         if not callable(peerServiceRemovalCallback):
@@ -68,8 +71,9 @@ class ZeroconfMessaging(MulticastMessaging):
             self.port = port
 
         # Callbacks.
-        self.serviceRegistrationCallback      = serviceRegistrationCallback
-        self.serviceRegistrationErrorCallback = serviceRegistrationErrorCallback
+        self.serviceRegisteredCallback      = serviceRegisteredCallback
+        self.serviceRegistrationFailedCallback = serviceRegistrationFailedCallback
+        self.serviceUnregisteredCallback      = serviceUnregisteredCallback
         self.peerServiceDiscoveryCallback     = peerServiceDiscoveryCallback
         self.peerServiceRemovalCallback       = peerServiceRemovalCallback
         self.peerServiceUpdateCallback        = peerServiceUpdateCallback
@@ -140,7 +144,7 @@ class ZeroconfMessaging(MulticastMessaging):
                                                         regtype = self.serviceType,
                                                         port = self.port,
                                                         txtRecord = primaryTxtRecord,
-                                                        callBack = self._serviceRegistrationCallback)
+                                                        callBack = self._serviceRegisteredCallback)
 
 
     def _browse(self):
@@ -407,18 +411,18 @@ class ZeroconfMessaging(MulticastMessaging):
         return False
 
 
-    def _serviceRegistrationCallback(self, sdRef, flags, errorCode, name, regtype, domain):
+    def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain):
         # Call the appropriate external callback.
         if errorCode == pybonjour.kDNSServiceErr_NoError:
             # Update our own service name.
             self.serviceName = name
             self.serverReady = True
             # Call the service registration callback.
-            self.serviceRegistrationCallback(sdRef, flags, errorCode, name, regtype, domain)
+            self.serviceRegisteredCallback(sdRef, flags, errorCode, name, regtype, domain, self.port)
         else:
             # Call the error callback, and pass it the error message.
             errorMessage = pybonjour.BonjourError._errmsg[errorCode]
-            self.serviceRegistrationErrorCallback(sdRef, flags, errorCode, errorMessage, name, regtype, domain)
+            self.serviceRegistrationFailedCallback(sdRef, flags, errorCode, errorMessage, name, regtype, domain)
 
 
     def _send(self):
@@ -494,6 +498,9 @@ class ZeroconfMessaging(MulticastMessaging):
         # Close the service descriptor references.
         if self.sdRefServer is not None:
             self.sdRefServer.close()
+            # We've now unregistered our service, thus call the
+            # serviceUnregisteredCallback callback.
+            self.serviceUnregisteredCallback(self.serviceName, self.serviceType, self.port)
         if self.sdRefBrowse is not None:
             self.sdRefBrowse.close()
         for sdRef in self.sdRefSingleShots:
@@ -513,11 +520,14 @@ if __name__ == "__main__":
     import copy
     from optparse import OptionParser
 
-    def serviceRegistrationCallback(sdRef, flags, errorCode, name, regtype, domain):
-        print "SERVICE REGISTRATION CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s" % (sdRef.fileno(), flags, errorCode, name, regtype, domain)
+    def serviceRegisteredCallback(sdRef, flags, errorCode, name, regtype, domain, port):
+        print "SERVICE REGISTERED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s, port=%d" % (sdRef.fileno(), flags, errorCode, name, regtype, domain, port)
 
-    def serviceRegistrationErrorCallback(sdRef, flags, errorCode, errorMessage, name, regtype, domain):
-        print "SERVICE REGISTRATION ERROR CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, errorMessage=%s, name=%s, regtype=%s, domain=%s" % (sdRef, flags, errorCode, errorMessage, name, regtype, domain)
+    def serviceRegistrationFailedCallback(sdRef, flags, errorCode, errorMessage, name, regtype, domain):
+        print "SERVICE REGISTRATION FAILED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, errorMessage=%s, name=%s, regtype=%s, domain=%s" % (sdRef, flags, errorCode, errorMessage, name, regtype, domain)
+
+    def serviceUnregisteredCallback(serviceName, serviceType, port):
+        print "SERVICE UNREGISTERED CALLBACK FIRED, params: serviceName=%s, serviceType=%s, port=%d" % (serviceName, serviceType, port)
 
     def peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         print "SERVICE DISCOVERY CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
@@ -548,8 +558,9 @@ if __name__ == "__main__":
                           serviceType = '_manyinarow._tcp',
                           protocolVersion = 1,
                           port = None,
-                          serviceRegistrationCallback=serviceRegistrationCallback,
-                          serviceRegistrationErrorCallback=serviceRegistrationErrorCallback,
+                          serviceRegisteredCallback=serviceRegisteredCallback,
+                          serviceRegistrationFailedCallback=serviceRegistrationFailedCallback,
+                          serviceUnregisteredCallback=serviceUnregisteredCallback,
                           peerServiceDiscoveryCallback=peerServiceDiscoveryCallback,
                           peerServiceRemovalCallback=peerServiceRemovalCallback,
                           peerServiceUpdateCallback=peerServiceUpdateCallback,

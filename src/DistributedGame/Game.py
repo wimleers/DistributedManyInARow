@@ -2,8 +2,8 @@ import threading
 import uuid
 
 
-import GlobalState
-import Player
+from GlobalState import GlobalState
+from Player import Player 
 import Service
 
 

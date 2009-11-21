@@ -9,8 +9,8 @@ class MulticastMessaging(threading.Thread):
     """
 
     def __init__(self, serviceName, serviceType, protocolVersion=1, port=None,
-                 serviceRegistrationCallback=None,
-                 serviceRegistrationErrorCallback=None,
+                 serviceRegisteredCallback=None,
+                 serviceRegistrationFailedCallback=None,
                  peerServiceDiscoveryCallback=None,
                  peerServiceRemovalCallback=None,
                  peerServiceUpdateCallback=None,
