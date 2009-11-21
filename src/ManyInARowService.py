@@ -40,7 +40,8 @@ class ManyInARowService(OneToManyService):
         self.guiPeerServiceRemovedCallback        = guiPeerServiceRemovedCallback
 
         # Maintain a list of active games.
-        self.games = {}
+        self.player = None
+        self.games  = {}
 
 
     def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain, port):
@@ -69,6 +70,7 @@ class ManyInARowService(OneToManyService):
 
     def advertiseGame(self, gameUUID, name, description, numRows, numCols, waitTime, startTime, player):
         with self.lock:
+            self.player = player
             # Register this game UUID as a destination in the Service.
             self.registerDestination(gameUUID)
             # Update the current game list.
@@ -80,7 +82,7 @@ class ManyInARowService(OneToManyService):
                 'numCols'     : numCols,
                 'waitTime'    : waitTime,
                 'starttime'   : startTime,
-                'players'     : [player],    
+                'players'     : [self.player],    
             }
             # Broadcast the updated game list.
             self.sendServiceMessage(self.games)
@@ -88,10 +90,11 @@ class ManyInARowService(OneToManyService):
 
     def joinGame(self, gameUUID, player):
         with self.lock:
+            self.player = player
             # Register this game UUID as a destination in the Service.
             self.registerDestination(gameUUID)
             # Update the current game list.
-            self.games[gameUUID]['players'].append(player)
+            self.games[gameUUID]['players'].append(self.player)
             # Broadcast the updated game list.
             self.sendServiceMessage(self.games)
 
@@ -101,7 +104,7 @@ class ManyInARowService(OneToManyService):
             # Remove this game UUID as a destination in the Service.
             self.removeDestination(gameUUID)
             # Update the current game list.
-            self.games[gameUUID]['players'].remove(player)
+            self.games[gameUUID]['players'].remove(self.player)
             # Broadcast the updated game list.
             self.sendServiceMessage(self.games)
 

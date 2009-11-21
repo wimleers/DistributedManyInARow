@@ -71,13 +71,13 @@ class ZeroconfMessaging(MulticastMessaging):
             self.port = port
 
         # Callbacks.
-        self.serviceRegisteredCallback      = serviceRegisteredCallback
+        self.serviceRegisteredCallback         = serviceRegisteredCallback
         self.serviceRegistrationFailedCallback = serviceRegistrationFailedCallback
-        self.serviceUnregisteredCallback      = serviceUnregisteredCallback
-        self.peerServiceDiscoveryCallback     = peerServiceDiscoveryCallback
-        self.peerServiceRemovalCallback       = peerServiceRemovalCallback
-        self.peerServiceUpdateCallback        = peerServiceUpdateCallback
-        self.peerMessageCallback              = peerMessageCallback
+        self.serviceUnregisteredCallback       = serviceUnregisteredCallback
+        self.peerServiceDiscoveryCallback      = peerServiceDiscoveryCallback
+        self.peerServiceRemovalCallback        = peerServiceRemovalCallback
+        self.peerServiceUpdateCallback         = peerServiceUpdateCallback
+        self.peerMessageCallback               = peerMessageCallback
         # Metadata for the ZeroconfMessaging implementation.
         self.txtRecords = {}
         # Metadata about peers.

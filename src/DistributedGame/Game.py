@@ -40,11 +40,6 @@ class Game(object):
         self.mutex = self.RELEASED
 
 
-    def __del__(self):
-        # Remove this Game as a destination in the Service.
-        self.service.removeDestination(self.player.UUID)
-
-
     def acquireMutex(self):
         pass
 

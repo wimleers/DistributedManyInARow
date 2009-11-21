@@ -48,9 +48,16 @@ gameCallbackNames = [
     'guiWinnerCallback',
     'guiFinishedCallback',
 ]
-# gameCallbacks = [curry(genericCallback, 'game', name) for name in gameCallbackNames]
-# game = ManyInARowGame(service, player, *gameCallbacks)
-#game.host(name, description, numRows, numCols, waitTime)
+gameCallbacks = [curry(genericCallback, 'game', name) for name in gameCallbackNames]
+game = ManyInARowGame(service, player, *gameCallbacks)
+gameSettings = {
+    'name'        : 'Ubergame',
+    'description' : 'Zis is dah ubergame!',
+    'numRows'     : 10,
+    'numCols'     : 12,
+    'waitTime'    : 3,
+}
+game.host(**gameSettings)
 
 time.sleep(2)
 service.kill()

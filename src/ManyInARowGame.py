@@ -63,6 +63,7 @@ class ManyInARowGame(object):
         self.currentGoal                   = 4
         self.finished                      = False
         self.canMakeMoveAfterMutexAcquired = False
+        self.playing                       = False
 
         # Create the underlying distributed game and pass it the Player object.
         self.service = service
@@ -71,7 +72,8 @@ class ManyInARowGame(object):
 
 
     def __del__(self):
-        self.service.leaveGame(self.game.UUID)
+        if self.playing:
+            self.service.leaveGame(self.game.UUID)
 
 
     def host(self, name, description, numRows, numCols, waitTime):
@@ -89,7 +91,8 @@ class ManyInARowGame(object):
                                    self.numRows, self.numCols,
                                    self.waitTime, self.startTime,
                                    self.player)
-    
+        self.playing = True
+
         # Let the GUI know that moves may now be made.
         self._guiCanMakeMove()
         
@@ -114,6 +117,7 @@ class ManyInARowGame(object):
         # Also let the service know we've joined the game: this is necessary
         # for the game listing.
         self.service.joinGame(gameUUID, self.player)
+        self.playing = True
 
         # Let the GUI know we successfully joined a game (because no join)
         self.guiJoinedGameCallback(self.name, self.description, self.numRows, self.numCols, self.waitTime, self.startTime)
@@ -143,7 +147,7 @@ class ManyInARowGame(object):
             self._guiCanMakeMove()
 
 
-    def _guiCanMakeMove():
+    def _guiCanMakeMove(self):
         if self.moveMessage is None:
             self.guiCanMakeMoveCallback()
             self.canMakeMoveAfterMutexAcquired = False

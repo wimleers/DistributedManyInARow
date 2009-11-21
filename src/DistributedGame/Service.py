@@ -80,7 +80,7 @@ class Service(threading.Thread):
 
     def sendServiceMessage(self, message):
         """Enqueue a service message to be sent."""
-        self.sendMessage(self, self.SERVICE_TO_SERVICE, message)
+        self.sendMessage(self.SERVICE_TO_SERVICE, message)
 
 
     def run(self):
@@ -126,7 +126,8 @@ class OneToManyService(Service):
 
     def removeDestination(self, destinationUUID):
         with self.lock:
-            del self.inbox[destinationUUID]
+            if self.inbox.has_key(self.inbox[destinationUUID]):
+                del self.inbox[destinationUUID]
 
 
     def run(self):
