@@ -8,15 +8,25 @@ class MulticastMessaging(threading.Thread):
     actual network traffic.
     """
 
-    def __init__(self):
+    def __init__(self, serviceName, serviceType, protocolVersion=1, port=None,
+                 serviceRegistrationCallback=None,
+                 serviceRegistrationErrorCallback=None,
+                 peerServiceDiscoveryCallback=None,
+                 peerServiceRemovalCallback=None,
+                 peerServiceUpdateCallback=None,
+                 peerMessageCallback=None):
+        super(MulticastMessaging, self).__init__()
+
+        # Metadata.
+        self.serviceName     = serviceName
+        self.serviceType     = serviceType
+        self.protocolVersion = protocolVersion
+        self.port            = port
         # Message relaying.
         self.inbox  = Queue.Queue()
         self.outbox = Queue.Queue()
         # Mutual exclusion.
         self.lock = threading.Condition()
-
-        super(MulticastMessaging, self).__init__()
-
 
     def run(self):
         raise NotImplemented

@@ -1,8 +1,12 @@
-from service import ManyToOneService
-from DistributedGame.Zeroconfmessaging import ZeroConfMessaging
+import platform
+import time
 
 
-class ManyInARowService(ManyToOneService):
+from DistributedGame.Service import OneToManyService
+from DistributedGame.ZeroconfMessaging import ZeroconfMessaging
+
+
+class ManyInARowService(OneToManyService):
     """For Many In A Row, the ManyToOne service is a perfect fit. """
 
     MOVE, CHAT, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
@@ -12,12 +16,11 @@ class ManyInARowService(ManyToOneService):
                 guiPeerServiceDiscoveredCallback, guiPeerServiceRemovedCallback,
                 guiGameAddedCallback, guiGameUpdatedCallback, guiGameEmptyCallback):
         # Call parent constructor with appropriate parameters.
-        super(ManyInARowService, self).__init__(serviceName=platform.node() # e.g. "WimLeers.local"
+        super(ManyInARowService, self).__init__(multicastMessagingClass=ZeroconfMessaging,
+                                          serviceName=platform.node(), # e.g. "WimLeers.local"
                                           serviceType='_manyinarow._tcp',
                                           protocolVersion=1,
-                                          port=None,
-                                          multicastMessagingClass=ZeroconfMessaging)
-
+                                          port=None)
         # Callbacks.
         if not callable(guiServiceRegisteredCallback):
             raise InvalidCallbackError, "guiServiceRegisteredCallback"
@@ -140,7 +143,7 @@ class ManyInARowService(ManyToOneService):
 
             # Send outgoing messages.
             with self.lock:
-                with self.multicast.lock
+                with self.multicast.lock:
                     while self.outbox.qsize() > 0:
                         # Copy the message from the Service outbox to the
                         # multicast messaging outbox, so that it will be sent.

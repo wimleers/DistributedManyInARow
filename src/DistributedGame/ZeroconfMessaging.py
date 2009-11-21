@@ -45,6 +45,8 @@ class ZeroconfMessaging(MulticastMessaging):
                  peerServiceRemovalCallback=None,
                  peerServiceUpdateCallback=None,
                  peerMessageCallback=None):
+        super(ZeroconfMessaging, self).__init__(serviceName, serviceType)
+
         # Ensure the callbacks are valid.
         if not callable(serviceRegistrationCallback):
             raise InvalidCallbackError, "service registration callback"
@@ -72,12 +74,8 @@ class ZeroconfMessaging(MulticastMessaging):
         self.peerServiceRemovalCallback       = peerServiceRemovalCallback
         self.peerServiceUpdateCallback        = peerServiceUpdateCallback
         self.peerMessageCallback              = peerMessageCallback
-        # Metadata about ourself.
-        self.serviceName     = serviceName
-        self.serviceType     = serviceType
-        self.protocolVersion = protocolVersion
-        self.port            = port
-        self.txtRecords      = {}
+        # Metadata for the ZeroconfMessaging implementation.
+        self.txtRecords = {}
         # Metadata about peers.
         self.peers                                   = {}
         self.peersTxtRecords                         = {}
@@ -93,8 +91,6 @@ class ZeroconfMessaging(MulticastMessaging):
         self.sdRefBrowse           = None # A single sdRef to discover peers.
         self.sdRefSingleShots      = []   # A list of sdRefs that need to return something just once.
         self.sdRefTXTRecordQueries = []   # A list of sdRefs that are "long-lived", always awaiting new/updated TXT records.
-
-        super(ZeroconfMessaging, self).__init__()
 
 
     def run(self):

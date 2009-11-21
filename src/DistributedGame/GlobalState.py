@@ -10,6 +10,7 @@ from collections import namedtuple as namedtuple
 
 # Imports from this module.
 from VectorClock import VectorClock
+import Service
 
 
 class GlobalStateError(Exception): pass
@@ -189,10 +190,10 @@ class GlobalState(threading.Thread):
         self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, ownClockValue, message) VALUES(?, ?, ?, ?, ?, ?)", (time.time(), self.senderUUID, self.senderUUID, self.clock.dumps(), self.clock[self.senderUUID], cPickle.dumps(message)))
         self._dbCon.commit()
 
-        # Use the passed in multicast implementation to send the message.
-        with self.multicast.lock:
-            self.multicast.outbox.put(message)
-            self.multicast.lock.notifyAll()
+        # Use the passed in service implementation to send the message.
+        with self.service.lock:
+            self.service.outbox.put(message)
+            self.service.lock.notifyAll()
 
 
     def _receiveMessage(self, message):
@@ -228,9 +229,9 @@ class GlobalState(threading.Thread):
 
             # Retrieve incoming messages and store them in the waiting room.
             with self.lock:
-                with self.multicast.lock:
-                    while self.multicast.inbox.qsize() > 0:
-                        message = self.multicast.inbox.get()
+                with self.service.lock:
+                    while self.service.inbox[self.senderUUID].qsize() > 0:
+                        message = self.service.inbox[self.senderUUID].get()
                         # Check if the message has a header that is addressed
                         # to the session we're participating in.
                         if message.has_key(self.sessionUUID): # TODO: this obviously fails when another thread/module wants to retrieves messages from the queue, so we need to add a router in between
@@ -265,6 +266,8 @@ class GlobalState(threading.Thread):
                     # of 2 ids with one +1 and the other one -1), then we can
                     # process it. This is necessary to guarantee correct order.
                     lowestClock = sortedClocks[0]
+                    print "current clock", self.clock
+                    print "lowest clock", lowestClock
                     if self.clock.isImmediatelyFollowedBy(lowestClock) or self.clock.isImmediatelyConcurrentWith(lowestClock):
                         self._receiveMessage(self.waitingRoom[lowestClock])
                         del self.waitingRoom[lowestClock]

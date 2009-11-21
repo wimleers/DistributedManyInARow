@@ -9,7 +9,7 @@ class Service(threading.Thread):
     SERVICE_TO_SERVICE = 'service-to-service'
 
 
-    def __init__(self, serviceName, serviceType, protocolVersion=1, port=None, multicastMessagingClass):
+    def __init__(self, multicastMessagingClass, serviceName, serviceType, protocolVersion=1, port=None):
         # MulticastMessaging subclass.
         if not issubclass(multicastMessagingClass, MulticastMessaging):
             raise MulticastMessagingClassError
@@ -19,19 +19,26 @@ class Service(threading.Thread):
                                                  peerServiceDiscoveryCallback=self._peerServiceDiscoveryCallback,
                                                  peerServiceRemovalCallback=self._peerServiceRemovalCallback,
                                                  peerServiceUpdateCallback=self._peerServiceUpdateCallback)
+        self.multicast.start()
 
-         # Message storage.
-         self.inbox  = Queue.Queue()
-         self.outbox = Queue.Queue()
-
-         # State variables.
-         self.alive = True
-         self.die   = False
-
-         # Other things.
-         self.lock = threading.Condition()
-
+        # Message storage.
+        self.inbox  = Queue.Queue()
+        self.outbox = Queue.Queue()
         
+        # State variables.
+        self.alive = True
+        self.die   = False
+        
+        # Other things.
+        self.lock = threading.Condition()
+
+        super(Service, self).__init__()
+
+
+    def __del__(self):
+        self.multicast.kill()
+
+
     def _serviceRegistrationCallback(self, sdRef, flags, errorCode, name, regtype, domain):
         print "SERVICE REGISTRATION CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s" % (sdRef.fileno(), flags, errorCode, name, regtype, domain)
         raise NotImplemented
@@ -94,16 +101,16 @@ class Service(threading.Thread):
 class OneToManyService(Service):
     """One service for many possible destinations per host."""
 
-    def __init__(self, serviceName, serviceType, protocolVersion=1, port=None, multicastMessagingClass):
-        super(OneToMany, self).__init__(serviceName, serviceType, protocolVersion, port, multicastMessagingClass)
+    def __init__(self, multicastMessagingClass, serviceName, serviceType, protocolVersion=1, port=None):
+        super(OneToManyService, self).__init__(multicastMessagingClass, serviceName, serviceType, protocolVersion, port)
 
         # There are multiple destinations per service, so allow for one inbox
         # per destination.
         self.inbox = {}
         # Some messages may not belong to one of the destinations per host,
         # but are meant for host-to-host (service-to-service) communication,
-        # hence we also provide a 'global' address.
-        self.inbox['global'] = Queue.Queue()
+        # hence we also provide a 'global' address: SERVICE_TO_SERVICE.
+        self.inbox[self.SERVICE_TO_SERVICE] = Queue.Queue()
 
 
     def registerDestination(self, destinationUUID):
@@ -132,7 +139,7 @@ class OneToManyService(Service):
 
             # Send outgoing messages.
             with self.lock:
-                with self.multicast.lock
+                with self.multicast.lock:
                     while self.outbox.qsize() > 0:
                         # Copy the packet from the Service outbox to the
                         # multicast messaging outbox, so that it will be sent.
@@ -152,7 +159,7 @@ class OneToManyService(Service):
 class OneToOneService(Service):
     """One service for a single possible destination per host."""
 
-    def __init__(self, serviceName, serviceType, protocolVersion=1, port=None, multicastMessagingClass):
-        super(OneToOne, self).__init__(serviceName, serviceType, protocolVersion, port, multicastMessagingClass)
+    def __init__(self, multicastMessagingClass, serviceName, serviceType, protocolVersion=1, port=None):
+        super(OneToOne, self).__init__(multicastMessagingClass, serviceName, serviceType, protocolVersion, port)
 
         
