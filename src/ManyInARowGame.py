@@ -163,6 +163,7 @@ class ManyInARowGame(object):
         if message['type'] == self.MOVE:
             self.guiMoveCallback(playerUUID, message['col'])
             # Actually make the move.
+            #@wim: de GUI zou eigenlijk een row en een col moeten meekrijgen, anders weet ik niet hoe hoog die moet staan
             self._makeMove(playerUUID, message['col'])
             # If this move result in the current goal, we have a winner! We
             # should notify the GUI and mark this game as finished (if no

@@ -3,17 +3,31 @@ import sys
 from GameWidget import GameWidget
 from PlayerAddWidget import PlayerAddWidget
 from NetworkLobbyWidget import NetworkLobbyWidget
-import vieropeenrij
+from ManyInARowService import ManyInARowService
+from DistributedGame.Player import Player
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, win_parent = None):
         QtGui.QMainWindow.__init__(self, win_parent)
         
+        #GUI
         self.createLayout()
         self.createMenu()
         self.showMaximized()
+        
+        #Network
+        self.manyInARowService = ManyInARowService(self.serviceRegisteredCallback, self.serviceRegistrationFailedCallback,
+                                                   self.serviceUnregisteredCallback, self.peerServiceDiscoveredCallback,
+                                                   self.peerServiceRemovedCallback, self.gameAddedCallback,
+                                                   self.gameUpdatedCallback, self.gameEmptyCallback)
         playerAddWidget = PlayerAddWidget(self)
-        self.localPlayerName = playerAddWidget.getPlayerInfo()
+        localPlayerName = playerAddWidget.getPlayerInfo()
+        self.localPlayer = Player(localPlayerName)
+        
+        
+    def closeEvent(self, event):
+        self.manyInARowService.kill()
+        event.accept()
         
     def createLayout(self):
         #Left side of screen: List of availabe games
@@ -24,13 +38,9 @@ class MainWindow(QtGui.QMainWindow):
         
         self.networkLobby = NetworkLobbyWidget(self)
         QtCore.QObject.connect(self.networkLobby, QtCore.SIGNAL("joinGameClicked(PyQt_PyObject, QString)"), self.joinGame)
-        label = QtGui.QLabel("Active games: ", self)
-        addButton = QtGui.QPushButton("Add", self)
-        addButton.clicked.connect(self.createNewGame)
+        QtCore.QObject.connect(self.networkLobby, QtCore.SIGNAL("addGame()"), self.createNewGame)
         self.leftLayout = QtGui.QVBoxLayout()
-        self.leftLayout.addWidget(label)
         self.leftLayout.addWidget(self.networkLobby)
-        self.leftLayout.addWidget(addButton)
         
         self.tabWidget = QtGui.QTabWidget(self)
         
@@ -53,13 +63,41 @@ class MainWindow(QtGui.QMainWindow):
         newGameDialog = NewGameDialog(self)
         (gameName, gameComment, numRows, numCols, waitTime) = newGameDialog.getGameInfo()
         if(gameName != None):
-            self.tabWidget.addTab(GameWidget(GameWidget.CREATE_NEW_GAME, {'rows' : numRows, 'cols' : numCols, 'name' : gameName, 'comment' : gameComment, 'waitTime' : waitTime}, self.localPlayerName, self.tabWidget), gameName)
+            self.tabWidget.addTab(GameWidget(GameWidget.CREATE_NEW_GAME, {'rows' : numRows, 'cols' : numCols, 'name' : gameName, 'comment' : gameComment, 'waitTime' : waitTime}, self.localPlayer, self.manyInARowService, self.tabWidget), gameName)
     
     def joinGame(self, UUID, name):
         # Is called when the user chooses to join a network game. This functions makes sure a new tab is created and the game joining is intiated. 
         # Create the new tab
-        newGameWidget = GameWidget(UUID, self.localPlayerName, self)
+        self.tabWidget.addTab(GameWidget(GameWidget.JOIN_GAME, UUID, self.localPlayer, self.manyInARowService, self.tabWidget), gameName)
         
+    def serviceRegisteredCallback(self, name, regtype, port):
+        QtGui.QMessageBox.information(None, "Success", "Serive started successfully")
+    
+    def serviceRegistrationFailedCallback(self, name, errorCode, errorMessage):
+        QtGui.QMessageBox.critical(None, "Error", "Service registration failed, please restart.")
+        self.close()
+    
+    def serviceUnregisteredCallback(self, serviceName, serviceType, port):
+        pass
+    
+    def peerServiceDiscoveredCallback(self, serviceName, interfaceIndex, ip, port):
+        self.networkLobby.addPeer(serviceName, interfaceIndex, ip, port)
+    
+    def peerServiceRemovedCallback(self, serviceName, interfaceIndex):
+        self.networkLobby.removePeer(serviceName, interfaceIndex)
+    
+    def gameAddedCallback(self, newGame):
+        gameUUID = newGame['gameUUID']
+        gameName = newGame['gameName']
+        self.networkLobby.addGame(gameName, gameUUID)
+    
+    def gameUpdatedCallback(self, updatedGame):
+        pass
+    
+    def gameEmptyCallback(self, emptyGameUUID):
+        #remove the game tab for this game
+        self.networkLobby.removeGame(emptyGameUUID)
+    
 
 class NewGameDialog(QtGui.QDialog):
     def __init__(self, win_parent = None):

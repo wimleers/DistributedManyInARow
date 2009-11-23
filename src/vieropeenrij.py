@@ -328,4 +328,4 @@ print field
 print field.checkWin (10, 5, 5)
 """
 
-game().play()
+#game().play()
