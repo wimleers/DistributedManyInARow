@@ -2,7 +2,10 @@
 queued unordered, reliable messaging simpler than you can imagine. Peer
 discovery happens automatically. Naming conflicts are solved automatically.
 Forget IGMP and special hardware requirements.
-Uses zeroconf networking."""
+Uses zeroconf networking.
+Message size is limited to 255 bytes. Therefore more of an experiment than
+actually usable.
+"""
 
 
 import select
@@ -17,7 +20,6 @@ from MulticastMessaging import MulticastMessaging
 # The protocol version is stored automatically in the primary TXT record and
 # associated with a "textvers" key, as is the convention in Bonjour/zeroconf.
 
-# TODO: automatically split up payloads of >64 KB in a single message.
 # TODO: add the ability to act as a relay node, i.e. to pass received
 # messages through to nodes on other interfaces.
 
