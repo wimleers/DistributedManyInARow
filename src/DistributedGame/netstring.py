@@ -267,7 +267,7 @@ class Decoder(object):
                     self.remaining_bytes = 0                    
                     self.expecting_terminator = True                            
 
-            # self.string_start = self.data_pos
+            self.string_start = self.data_pos
         
         
 def decode(data):

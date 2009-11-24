@@ -7,9 +7,10 @@ Uses zeroconf networking."""
 
 import select
 import cPickle
+import math
 import socket
 import time
-import StringIO
+import uuid
 
 import netstring
 import pybonjour
@@ -40,8 +41,10 @@ class IPMulticastMessaging(MulticastMessaging):
     ANY = "0.0.0.0" # Corresponds to INADDR_ANY.
     MCAST_GRP = '225.0.13.37'
     MCAST_TTL = 1 # 1 for same subnet, 32 for same organization (see http://www.tldp.org/HOWTO/Multicast-HOWTO-2.html)
-    # MCAST_PORT = 
-    PACKET_SIZE = 4096
+    PACKET_SIZE = 150
+
+    FRAGMENT_ID_SIZE   = 36 + 5 + 5 # UUID (32 characters) + number (5 digits) + total number (5 digits)
+    FRAGMENT_DATA_SIZE = PACKET_SIZE - FRAGMENT_ID_SIZE
 
     def __init__(self, serviceName, serviceType, protocolVersion=1, port=None,
                  serviceRegisteredCallback=None,
@@ -72,45 +75,6 @@ class IPMulticastMessaging(MulticastMessaging):
         if not callable(peerMessageCallback):
             raise InvalidCallbackError, "peer message callback"
 
-        # If port is set to None, then pick a random free port automatically.
-        if port is None:
-            port = 0
-        else:
-            port = port
-        # Bind to socket for receiving IP multicast packets.
-        self.recvSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.recvSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.recvSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) # Allow multiple processes on the same computer to join the multicast group.
-        self.recvSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MCAST_TTL) 
-        self.recvSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1) # Enable loopback.
-        self.recvSocket.bind((self.ANY, port))
-
-        # SAMPLE: If we'd like to use a specific network InterFace (IF).
-        # host = socket.gethostbyname(socket.gethostname())
-        # self.recvSocket.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(host))
-
-        # SAMPLE: If we'd like to subscribe to multicast packets for the given
-        # multicast group on *all* network intefaces.
-        # self.recvSocket.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(self.MCAST_GRP) + socket.inet_aton(self.ANY))
-
-        # Find out which random port was picked.
-        if port == 0:
-            (ip, port) = self.recvSocket.getsockname()
-            self.recvPort = int(port)
-        else:
-            self.recvPort = int(port)
-
-        # Prepare socket for sending IP multicast packets. Always picks a
-        # random port. Also necessary for zeroconf: if you pass it the same
-        # address/port combination twice, it will think that you're registering
-        # the same service twice and not resolve name conflicts automatically
-        # (which can happen if you're running multiple instances on the same
-        # host).
-        self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sendSocket.bind((self.ANY, 0))
-        (ip, port) = self.sendSocket.getsockname()
-        self.sendPort = port
-
         # Callbacks.
         self.serviceRegisteredCallback             = serviceRegisteredCallback
         self.serviceRegistrationFailedCallback     = serviceRegistrationFailedCallback
@@ -139,6 +103,7 @@ class IPMulticastMessaging(MulticastMessaging):
 
         # Multicast metadata.
         self.stringAssembler = netstring.Decoder()
+        self.fragmentsBuffer = {}
         self.buffer = ""
         # Multicast memberships.
         self.memberships = []
@@ -146,6 +111,48 @@ class IPMulticastMessaging(MulticastMessaging):
         # General state variables.
         self.alive       = True
         self.die         = False
+
+        # If port is set to None, then pick a random free port automatically.
+        if port is None:
+            port = 0
+        else:
+            port = port
+        # Bind to socket for receiving IP multicast packets.
+        self.recvSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.recvSocket.setblocking(0)
+        self.recvSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.recvSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) # Allow multiple processes on the same computer to join the multicast group.
+        self.recvSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MCAST_TTL) 
+        self.recvSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1) # Enable loopback.
+        self.recvSocket.bind((self.ANY, port))
+        # SAMPLE: If we'd like to use a specific network InterFace (IF).
+        # host = socket.gethostbyname(socket.gethostname())
+        # self.recvSocket.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(host))
+        # SAMPLE: If we'd like to subscribe to multicast packets for the given
+        # multicast group on *all* network intefaces.
+        # self.recvSocket.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(self.MCAST_GRP) + socket.inet_aton(self.ANY))
+        # Find out which random port was picked.
+        if port == 0:
+            (ip, port) = self.recvSocket.getsockname()
+            self.recvPort = int(port)
+        else:
+            self.recvPort = int(port)
+        # Subscribe to ourself: apparently, enabling IP_MULTICAST_LOOP is not
+        # sufficient.
+        host = socket.gethostbyname(socket.gethostname())
+        self.subscribe(host)
+
+        # Prepare socket for sending IP multicast packets. Always picks a
+        # random port. Also necessary for zeroconf: if you pass it the same
+        # address/port combination twice, it will think that you're registering
+        # the same service twice and not resolve name conflicts automatically
+        # (which can happen if you're running multiple instances on the same
+        # host).
+        self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.sendSocket.setblocking(0)
+        self.sendSocket.bind((self.ANY, 0))
+        (ip, port) = self.sendSocket.getsockname()
+        self.sendPort = port
 
 
     def run(self):
@@ -188,7 +195,7 @@ class IPMulticastMessaging(MulticastMessaging):
         if host not in self.memberships:
             self.memberships.append(host)
             self.recvSocket.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(self.MCAST_GRP) + socket.inet_aton(host))
-            print "subscribed to %s", host
+            print "subscribed to %s" % host
             return True
         else:
             # Already subscribed.
@@ -519,16 +526,47 @@ class IPMulticastMessaging(MulticastMessaging):
 
         # Fragment the data into multiple packets when there's too much data
         # to fit in a single packet.
-        dataSize = len(data)
-        bytesSent = 0
-        f = 0
-        while bytesSent < dataSize:
-            fragment = data[:self.PACKET_SIZE]
-            data = data[self.PACKET_SIZE:]
+        bytesData       = len(data)
+        bytesFragmented = 0 # At the end, this must match the bytesData.
+        packetID        = str(uuid.uuid1()) # Generate a UUID for the packet.
+        numFragments    = int(math.ceil(1.0 * bytesData / self.FRAGMENT_DATA_SIZE))
+        fragments       = []
+        # Ensure that the number of fragments does not exceed 10,000.
+        if numFragments > 10000:
+            raise Exception, "Too many fragments were necessary to send the data: %d, while 10,000 is the limit." % (len(numFragments))
+        for f in xrange(numFragments):
+            # Create the fragment ID.
+            fragmentID = self._createFragmentID(packetID, f, numFragments)
+            # Create the fragment data.
+            fragmentData = data[:self.FRAGMENT_DATA_SIZE]
+            bytesFragmented += len(fragmentData)
+            # Combine the ID and the data into the actual fragment.
+            fragment = fragmentID + fragmentData
+            fragments.append(fragment)
+            # print 'FRAGMENT', fragmentID, ', fragment size:', len(fragment), ', bytes Fragmented:', bytesFragmented, ', more:', bytesFragmented < bytesData
+            # Update the remaining data that should be sent.
+            data = data[self.FRAGMENT_DATA_SIZE:]
+        # Ensure that all data is sent.
+        if bytesFragmented != bytesData:
+            raise Exception, "Not everything is sent, only %d bytes out of %d!" % (bytesFragmented, bytesData)
+
+        # Actually send all created fragments.
+        for fragment in fragments:
             self.sendSocket.sendto(fragment, (self.MCAST_GRP, self.recvPort))
-            bytesSent += len(fragment)
-            f += 1
-            print 'FRAGMENT', f, ', fragment size:', len(fragment), ', bytes sent:', bytesSent, ', more:', bytesSent < dataSize
+
+
+    def _createFragmentID(self, packetID, fragmentSeqNum, numFragments):
+        return "%s%05d%05d" % (packetID, fragmentSeqNum, numFragments)
+
+
+    def _parseFragmentID(self, fragmentID):
+        """Parse a fragment ID. The first 32 characters are a UUID, the next 5
+        characters form an integer with leading zeros and indicate the
+        sequence number of the fragment and the final 5 characters also form
+        an integer with leading zeros but indciates the total number of
+        fragments for the packet."""
+        # print "\tparsed FRAGMENT ID", fragmentID, (fragmentID[0:36], int(fragmentID[36:41]), int(fragmentID[41:46]))
+        return (fragmentID[0:36], int(fragmentID[36:41]), int(fragmentID[41:46]))
 
 
     def _receive(self):
@@ -543,30 +581,51 @@ class IPMulticastMessaging(MulticastMessaging):
 
 
     def _receiveMessage(self):
-        self.recvSocket.setblocking(0)
         try:
             data, addr = self.recvSocket.recvfrom(self.PACKET_SIZE)
-            print '\t\treceived %d bytes of data' % (len(data))
         except socket.error, e:
             print 'Expection'
 
-        # Update the buffer with the new data.
-        self.buffer += data
+        # Extract the fragment ID from the data.
+        fragmentID = data[:self.FRAGMENT_ID_SIZE]
+        data = data[self.FRAGMENT_ID_SIZE:]
 
-        # Attempt to decode netstrings from the buffer.
-        try:
-            netstrings, remaining = netstring.decode(self.buffer)
-            self.buffer = remaining
-            for string in netstrings:
-                with self.lock:
-                    # WARNING: insecure! Global variables might be
-                    # unpickled!
-                    message = cPickle.loads(string)
-                    print 'RECEIVED MESSAGE FROM:', addr, addr[0] in self.memberships
-                    yield message
+        # Parse the fragment ID.
+        packetID, sequenceNumber, totalNumber = self._parseFragmentID(fragmentID)
+
+        # Reassemble the packet.
+        packet = ""
+        if totalNumber > 1:
+            # Handle fragmentation.
+            if not self.fragmentsBuffer.has_key(packetID):
+                self.fragmentsBuffer[packetID] = {}
+            self.fragmentsBuffer[packetID][sequenceNumber] = data
+            # When we have all fragments of a packet, reassemble the packet.
+            if len(self.fragmentsBuffer[packetID]) == totalNumber:
+                for key in xrange(totalNumber):
+                    packet += self.fragmentsBuffer[packetID][key]
+                del self.fragmentsBuffer[packetID]
+        else:
+            # This packet consists of a single frame: no need to reassemble!
+            packet = data
+
+        # Decode the message in the packet.
+        if packet != "":
+            # Attempt to decode netstrings from the buffer.
+            try:
+                netstrings, remaining = netstring.decode(packet)
+                if len(remaining) > 0:
+                    raise Exception, "No data should be remaining."
+                for string in netstrings:
+                    with self.lock:
+                        # WARNING: insecure! Global variables might be
+                        # unpickled!
+                        message = cPickle.loads(string)
+                        print 'RECEIVED MESSAGE FROM:', addr, addr[0] in self.memberships
+                        yield message
                 
-        except netstring.DecoderError:
-            pass
+            except netstring.DecoderError:
+                pass
         
         
         # newTxtRecords = {}
