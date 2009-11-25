@@ -1,6 +1,7 @@
 import Queue
 import threading
-from MulticastMessaging import MulticastMessaging
+from IPMulticastMessaging import IPMulticastMessaging
+from ZeroconfMessaging import ZeroconfMessaging
 
 
 class Service(threading.Thread):
@@ -9,35 +10,39 @@ class Service(threading.Thread):
     SERVICE_TO_SERVICE = 'service-to-service'
 
 
-    def __init__(self, multicastMessagingClass, serviceName, serviceType, protocolVersion=1, port=None):
-        # MulticastMessaging subclass.
-        if not issubclass(multicastMessagingClass, MulticastMessaging):
-            raise MulticastMessagingClassError
-        self.multicast = multicastMessagingClass(serviceName, serviceType, protocolVersion, port,
-                                                 serviceRegisteredCallback=self._serviceRegisteredCallback,
-                                                 serviceRegistrationFailedCallback=self._serviceRegistrationFailedCallback,
-                                                 serviceUnregisteredCallback=self._serviceUnregisteredCallback,
-                                                 peerServiceDiscoveryCallback=self._peerServiceDiscoveryCallback,
-                                                 peerServiceRemovalCallback=self._peerServiceRemovalCallback,
-                                                 peerServiceUpdateCallback=self._peerServiceUpdateCallback)
+    def __init__(self, serviceName, serviceType, port, protocolVersion=1):
+        super(Service, self).__init__(name='Service-Thread')
+
+        # Initialize IP Multicast layer.
+        self.multicast = IPMulticastMessaging(port)
+        uniquePort = self.multicast.getSendPort()
         self.multicast.start()
+
+        # Initialize zeroconf layer.
+        self.zeroconf = ZeroconfMessaging(serviceName, serviceType, uniquePort, protocolVersion,
+                                          serviceRegisteredCallback=self._serviceRegisteredCallback,
+                                          serviceRegistrationFailedCallback=self._serviceRegistrationFailedCallback,
+                                          serviceUnregisteredCallback=self._serviceUnregisteredCallback,
+                                          peerServiceDiscoveryCallback=self._peerServiceDiscoveryCallback,
+                                          peerServiceRemovalCallback=self._peerServiceRemovalCallback,
+                                          peerServiceUpdateCallback=self._peerServiceUpdateCallback,
+                                          peerServiceDescriptionUpdatedCallback=self._peerServiceDescriptionUpdatedCallback)
+        self.zeroconf.start()
 
         # Message storage.
         self.inbox  = Queue.Queue()
         self.outbox = Queue.Queue()
-        
+
+        # Service description storage.
+        self.ownServiceDescription = {} # No need for a queue, keeping only the latest is sufficient, since it doens't convey history but the current status.
+        self.serviceDescriptions = {}
+
         # State variables.
         self.alive = True
         self.die   = False
         
         # Other things.
         self.lock = threading.Condition()
-
-        super(Service, self).__init__()
-
-
-    def __del__(self):
-        self.multicast.kill()
 
 
     def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain):
@@ -70,12 +75,28 @@ class Service(threading.Thread):
         raise NotImplemented
 
 
+    def _peerServiceDescriptionUpdatedCallback(self, serviceName, interfaceIndex, txtRecords, updated, deleted):
+        print "SERVICE DESCRIPTION UPDATED CALLBACK FIRED", serviceName, interfaceIndex, txtRecords
+        print "\tupdated:"
+        for key in updated:
+            print "\t\t", key, txtRecords[key]
+        print "\tdeleted:"
+        for key in deleted:
+            print "\t\t", key
+
+
     def sendMessage(self, destinationUUID, message):
         """Enqueue a message to be sent."""
         with self.lock:
             packet = {}
             packet[destinationUUID] = message
             self.outbox.put(packet)
+
+
+    def setServiceDescription(self, description):
+        """Set the (zeroconf) service description."""
+        with self.zeroconf.lock:
+            self.zeroconf.outbox.put(description)
 
 
     def sendServiceMessage(self, message):
@@ -98,6 +119,10 @@ class Service(threading.Thread):
         calling this method.
         """
 
+        # Kill multicast and zeroconf.
+        self.multicast.kill()
+        self.zeroconf.kill()
+
         # Stop us from running any further.
         self.alive = False
 
@@ -107,8 +132,8 @@ class Service(threading.Thread):
 class OneToManyService(Service):
     """One service for many possible destinations per host."""
 
-    def __init__(self, multicastMessagingClass, serviceName, serviceType, protocolVersion=1, port=None):
-        super(OneToManyService, self).__init__(multicastMessagingClass, serviceName, serviceType, protocolVersion, port)
+    def __init__(self, serviceName, serviceType, port, protocolVersion=1):
+        super(OneToManyService, self).__init__(serviceName, serviceType, port, protocolVersion)
 
         # There are multiple destinations per service, so allow for one inbox
         # per destination.
@@ -116,7 +141,7 @@ class OneToManyService(Service):
         # Some messages may not belong to one of the destinations per host,
         # but are meant for host-to-host (service-to-service) communication,
         # hence we also provide a 'global' address: SERVICE_TO_SERVICE.
-        self.inbox[self.SERVICE_TO_SERVICE] = Queue.Queue()
+        self.registerDestination(self.SERVICE_TO_SERVICE)
 
 
     def registerDestination(self, destinationUUID):
@@ -126,7 +151,7 @@ class OneToManyService(Service):
 
     def removeDestination(self, destinationUUID):
         with self.lock:
-            if self.inbox.has_key(self.inbox[destinationUUID]):
+            if self.inbox.has_key(destinationUUID):
                 del self.inbox[destinationUUID]
 
 
@@ -166,7 +191,7 @@ class OneToManyService(Service):
 class OneToOneService(Service):
     """One service for a single possible destination per host."""
 
-    def __init__(self, multicastMessagingClass, serviceName, serviceType, protocolVersion=1, port=None):
-        super(OneToOne, self).__init__(multicastMessagingClass, serviceName, serviceType, protocolVersion, port)
+    def __init__(self, serviceName, serviceType, port, protocolVersion=1):
+        super(OneToOne, self).__init__(serviceName, serviceType, port, protocolVersion)
 
         

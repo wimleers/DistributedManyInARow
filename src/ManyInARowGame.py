@@ -60,7 +60,7 @@ class ManyInARowGame(object):
         # Game state.
         self.moveMessage                   = None
         self.winners                       = {}
-        self.currentGoal                   = 4
+        self.currentGoal                   = 4 # 4 is always the initial goal
         self.finished                      = False
         self.canMakeMoveAfterMutexAcquired = False
         self.playing                       = False
@@ -89,8 +89,7 @@ class ManyInARowGame(object):
         self.service.advertiseGame(self.game.UUID,
                                    self.name, self.description,
                                    self.numRows, self.numCols,
-                                   self.waitTime, self.startTime,
-                                   self.player)
+                                   self.waitTime, self.startTime)
         self.playing = True
 
         # Let the GUI know that moves may now be made.
@@ -116,7 +115,7 @@ class ManyInARowGame(object):
 
         # Also let the service know we've joined the game: this is necessary
         # for the game listing.
-        self.service.joinGame(gameUUID, self.player)
+        self.service.joinGame(gameUUID)
         self.playing = True
 
         # Let the GUI know we successfully joined a game (because no join)

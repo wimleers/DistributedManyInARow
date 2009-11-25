@@ -1,12 +1,14 @@
 import copy
+import Queue
 import uuid
 from optparse import OptionParser
 import unittest
 
 
 from GlobalState import *
-from MulticastMessaging import *
 from Service import OneToManyService
+
+
 
 
 class GlobalStateTest(unittest.TestCase):
@@ -16,7 +18,7 @@ class GlobalStateTest(unittest.TestCase):
         senderUUID = str(uuid.uuid1())
         otherSenderUUID = str(uuid.uuid1())
 
-        service = OneToManyService(MulticastMessaging, 'testhost', 'testService')
+        service = OneToManyService('testhost', 'testService', 1600)
         service.registerDestination(senderUUID)
 
         gs = GlobalState(service, sessionUUID, senderUUID)
@@ -59,7 +61,7 @@ class GlobalStateTest(unittest.TestCase):
         sessionUUID = str(uuid.uuid1())
         senderUUID = str(uuid.uuid1())
         otherSenderUUID = str(uuid.uuid1())
-        service = OneToManyService(MulticastMessaging, 'testhost', 'testService')
+        service = OneToManyService('testhost', 'testService', 1600)
         service.registerDestination(senderUUID)
 
         gs = GlobalState(service, sessionUUID, senderUUID)
@@ -103,7 +105,7 @@ class GlobalStateTest(unittest.TestCase):
         sessionUUID = str(uuid.uuid1())
         senderUUID = str(uuid.uuid1())
         otherSenderUUID = str(uuid.uuid1())
-        service = OneToManyService(MulticastMessaging, 'testhost', 'testService')
+        service = OneToManyService('testhost', 'testService', 1600)
         service.registerDestination(senderUUID)
 
         gs = GlobalState(service, sessionUUID, senderUUID)

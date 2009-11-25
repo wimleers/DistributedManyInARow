@@ -8,20 +8,18 @@ actually usable.
 """
 
 
+import copy
 import select
 import pybonjour
 import cPickle
+import Queue
 import socket
+import threading
 import time
-
-from MulticastMessaging import MulticastMessaging
 
 
 # The protocol version is stored automatically in the primary TXT record and
 # associated with a "textvers" key, as is the convention in Bonjour/zeroconf.
-
-# TODO: add the ability to act as a relay node, i.e. to pass received
-# messages through to nodes on other interfaces.
 
 
 # Define exceptions.
@@ -38,17 +36,17 @@ def curry(_curried_func, *args, **kwargs):
     return _curried
 
 
-class ZeroconfMessaging(MulticastMessaging):
+class ZeroconfMessaging(threading.Thread):
 
-    def __init__(self, serviceName, serviceType, protocolVersion=1, port=None,
+    def __init__(self, serviceName, serviceType, port, protocolVersion=1,
                  serviceRegisteredCallback=None,
                  serviceRegistrationFailedCallback=None,
                  serviceUnregisteredCallback=None,
                  peerServiceDiscoveryCallback=None,
                  peerServiceRemovalCallback=None,
                  peerServiceUpdateCallback=None,
-                 peerMessageCallback=None):
-        super(ZeroconfMessaging, self).__init__(serviceName, serviceType)
+                 peerServiceDescriptionUpdatedCallback=None):
+        super(ZeroconfMessaging, self).__init__(name='ZeroconfMessaging-Thread')
 
         # Ensure the callbacks are valid.
         if not callable(serviceRegisteredCallback):
@@ -63,6 +61,8 @@ class ZeroconfMessaging(MulticastMessaging):
             raise InvalidCallbackError, "peer service removal callback"
         if not callable(peerServiceUpdateCallback):
             raise InvalidCallbackError, "peer service update callback"
+        if not callable(peerServiceDescriptionUpdatedCallback):
+            raise InvalidCallbackError, "peer service description updated callback"
 
         # If port is set to None, then pick a random free port automatically.
         if port is None:
@@ -70,16 +70,25 @@ class ZeroconfMessaging(MulticastMessaging):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind(('', 0))
             (ip, port) = self.socket.getsockname()
-            self.port = port
 
         # Callbacks.
-        self.serviceRegisteredCallback         = serviceRegisteredCallback
-        self.serviceRegistrationFailedCallback = serviceRegistrationFailedCallback
-        self.serviceUnregisteredCallback       = serviceUnregisteredCallback
-        self.peerServiceDiscoveryCallback      = peerServiceDiscoveryCallback
-        self.peerServiceRemovalCallback        = peerServiceRemovalCallback
-        self.peerServiceUpdateCallback         = peerServiceUpdateCallback
-        self.peerMessageCallback               = peerMessageCallback
+        self.serviceRegisteredCallback             = serviceRegisteredCallback
+        self.serviceRegistrationFailedCallback     = serviceRegistrationFailedCallback
+        self.serviceUnregisteredCallback           = serviceUnregisteredCallback
+        self.peerServiceDiscoveryCallback          = peerServiceDiscoveryCallback
+        self.peerServiceRemovalCallback            = peerServiceRemovalCallback
+        self.peerServiceUpdateCallback             = peerServiceUpdateCallback
+        self.peerServiceDescriptionUpdatedCallback = peerServiceDescriptionUpdatedCallback
+        # Metadata.
+        self.serviceName     = serviceName
+        self.serviceType     = serviceType
+        self.protocolVersion = protocolVersion
+        self.port            = port
+        # Message relaying.
+        self.inbox  = Queue.Queue()
+        self.outbox = Queue.Queue()
+        # Mutual exclusion.
+        self.lock = threading.Condition()
         # Metadata for the ZeroconfMessaging implementation.
         self.txtRecords = {}
         # Metadata about peers.
@@ -364,8 +373,8 @@ class ZeroconfMessaging(MulticastMessaging):
             self.peersTxtRecordsUpdatedSinceLastCallback[serviceName][interfaceIndex] = []
             self.peersTxtRecordsDeletedSinceLastCallback[serviceName][interfaceIndex] = []
             # Send the callback, if it is callable.
-            if callable(self.peerMessageCallback):
-                self.peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted)
+            if callable(self.peerServiceDescriptionUpdatedCallback):
+                self.peerServiceDescriptionUpdatedCallback(serviceName, interfaceIndex, copy.deepcopy(txtRecords), updated, deleted)
             # Update the inbox. Only send the message itself, not the details.
             with self.lock:
                 message = [{header : txtRecords[header]} for header in updated]
@@ -441,10 +450,10 @@ class ZeroconfMessaging(MulticastMessaging):
         newTxtRecords = {}
         for key, value in message.items():
             serializedValue = cPickle.dumps(value)
-            # Validate TXT record size: it should never exceed 65536 bytes.
-            if len(key) + len('=') + len(serializedValue) > 65536:
+            # Validate TXT record size: it should never exceed 255 bytes.
+            if len(key) + len('=') + len(serializedValue) > 255:
                 raise MessageTooLargeError, "message size is: %d for key '%s'" % (len(key) + len('=') + len(serializedValue), key)
-            txt = pybonjour.TXTRecord({key : serializedValue}, False) # Disable strict checking, which would only allow for 255 bytes.
+            txt = pybonjour.TXTRecord({key : serializedValue})
             newTxtRecords[key] = {'value' : value, 'txtRecord' : txt}
 
         # Make sets out of the keys of the TXT records to make it easier to
@@ -456,7 +465,7 @@ class ZeroconfMessaging(MulticastMessaging):
         # comparison to ensure we only update when the value actually changed.
         for key in curKeys.intersection(newKeys):
             if self.txtRecords[key]['value'] != newTxtRecords[key]['value']:
-                print "\tUpdating:", key
+                # print "\tUpdating:", key
                 pybonjour.DNSServiceUpdateRecord(sdRef = self.sdRefServer,
                                                  RecordRef = self.txtRecords[key]['recordReference'],
                                                  rdata = newTxtRecords[key]['txtRecord'])
@@ -466,7 +475,7 @@ class ZeroconfMessaging(MulticastMessaging):
 
         # Remove: difference of current with new TXT records.
         for key in curKeys.difference(newKeys):
-            print "\tRemoving: ", key
+            # print "\tRemoving: ", key
             # A removed record doesn't get broadcast. So first update the
             # record's value to the string 'DELETE'. This is our way of
             # telling that this TXT record will be deleted.
@@ -482,7 +491,7 @@ class ZeroconfMessaging(MulticastMessaging):
 
         # Add: difference of new with current TXT records.
         for key in newKeys.difference(curKeys):
-            print "\tAdding:", key
+            # print "\tAdding:", key
             rRef = pybonjour.DNSServiceAddRecord(sdRef = self.sdRefServer,
                                                  rrtype = pybonjour.kDNSServiceType_TXT,
                                                  rdata = newTxtRecords[key]['txtRecord'])
@@ -540,8 +549,8 @@ if __name__ == "__main__":
     def peerServiceUpdateCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
 
-    def peerMessageCallback(serviceName, interfaceIndex, txtRecords, updated, deleted):
-        print "PEER MESSAGE CALLBACK FIRED", serviceName, interfaceIndex, txtRecords
+    def peerServiceDescriptionUpdatedCallback(serviceName, interfaceIndex, txtRecords, updated, deleted):
+        print "SERVICE DESCRIPTION UPDATED CALLBACK FIRED", serviceName, interfaceIndex, txtRecords
         print "\tupdated:"
         for key in updated:
             print "\t\t", key, txtRecords[key]
@@ -558,15 +567,15 @@ if __name__ == "__main__":
     # Initialize ZeroconfMessaging.
     z = ZeroconfMessaging(serviceName = platform.node(),
                           serviceType = '_manyinarow._tcp',
-                          protocolVersion = 1,
                           port = None,
+                          protocolVersion = 1,
                           serviceRegisteredCallback=serviceRegisteredCallback,
                           serviceRegistrationFailedCallback=serviceRegistrationFailedCallback,
                           serviceUnregisteredCallback=serviceUnregisteredCallback,
                           peerServiceDiscoveryCallback=peerServiceDiscoveryCallback,
                           peerServiceRemovalCallback=peerServiceRemovalCallback,
                           peerServiceUpdateCallback=peerServiceUpdateCallback,
-                          peerMessageCallback=peerMessageCallback)
+                          peerServiceDescriptionUpdatedCallback=peerServiceDescriptionUpdatedCallback)
      
  
     # Prepare two messages to be broadcast.
