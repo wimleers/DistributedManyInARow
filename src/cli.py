@@ -90,9 +90,9 @@ if not options.listenOnly:
     game.host(**gameSettings)
     time.sleep(0.5)
 
-    # print "[CLI] Sending chat message."
-    # game.sendChatMessage("Guten tag, anybody around?")
-    # time.sleep(0.5)
+    print "[CLI] Sending chat message."
+    game.sendChatMessage("Guten tag, anybody around?")
+    time.sleep(0.5)
 else:
     time.sleep(5)
 

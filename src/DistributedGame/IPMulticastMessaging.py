@@ -59,7 +59,8 @@ class IPMulticastMessaging(threading.Thread):
         self.recvSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.recvSocket.setblocking(0)
         self.recvSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.recvSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) # Allow multiple processes on the same computer to join the multicast group.
+        if hasattr(socket, 'SO_REUSEPORT'):
+            self.recvSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) # Allow multiple processes on the same computer to join the multicast group.
         self.recvSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MCAST_TTL) 
         self.recvSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1) # Enable loopback.
         self.recvSocket.bind((self.ANY, port))
