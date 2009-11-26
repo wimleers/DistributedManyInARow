@@ -68,6 +68,9 @@ class ManyInARowService(OneToManyService):
         self.otherPlayers      = {}
         self.games             = {}
         self.participatedGames = []
+        
+        # Broadcast the updated game list.
+        self.buildServiceDescription()
 
 
     def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain, port):

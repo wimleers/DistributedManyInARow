@@ -19,7 +19,7 @@ class MainWindow(QtGui.QMainWindow):
         
         playerAddWidget = PlayerAddWidget(self)
         localPlayerName = playerAddWidget.getPlayerInfo()
-        self.localPlayer = Player(localPlayerName)
+        self.localPlayer = Player(str(localPlayerName))
         
         #Network
         self.manyInARowService = ManyInARowService(self.localPlayer, self.serviceRegisteredCallback, self.serviceRegistrationFailedCallback,
@@ -28,9 +28,9 @@ class MainWindow(QtGui.QMainWindow):
                                                    self.playerLeftCallback, self.gameAddedCallback,
                                                    self.gameUpdatedCallback, self.gameEmptyCallback)
         
+        self.manyInARowService.start()
+        
     def closeEvent(self, event):
-        self.succesBox.close()
-        self.errorBox.close()
         self.manyInARowService.kill()
         event.accept()
         
@@ -73,12 +73,13 @@ class MainWindow(QtGui.QMainWindow):
     def joinGame(self, UUID, name):
         # Is called when the user chooses to join a network game. This functions makes sure a new tab is created and the game joining is intiated. 
         # Create the new tab
-        self.tabWidget.addTab(GameWidget(GameWidget.JOIN_GAME, UUID, self.localPlayer, self.manyInARowService, self.tabWidget), gameName)
+        self.tabWidget.addTab(GameWidget(GameWidget.JOIN_GAME, UUID, self.localPlayer, self.manyInARowService, self.tabWidget), name)
         
     def serviceRegisteredCallback(self, name, regtype, port):
         self.succesBox.exec_()
         
     def serviceRegistrationFailedCallback(self, name, errorCode, errorMessage):
+        self.errorBox.setText(str(errorCode) + ": " + str(errorMessage))
         self.errorBox.exec_()
         self.close()
     
@@ -92,23 +93,22 @@ class MainWindow(QtGui.QMainWindow):
         self.networkLobby.removePeer(serviceName, interfaceIndex)
         
     def playerAddedCallback(self, player):
-        pass
+        self.networkLobby.addPlayer(player)
     
     def playerUpdatedCallback(self, player):
         pass
     
     def playerLeftCallback(self, player):
-        pass
+        print "Player left: " + str(player)
+        self.networkLobby.removePlayer(player)
     
-    def gameAddedCallback(self, newGame):
-        gameUUID = newGame['gameUUID']
-        gameName = newGame['gameName']
-        self.networkLobby.addGame(gameName, gameUUID)
+    def gameAddedCallback(self, gameUUID, newGame):
+        self.networkLobby.addGame(newGame, gameUUID)
     
     def gameUpdatedCallback(self, updatedGame):
         pass
     
-    def gameEmptyCallback(self, emptyGameUUID):
+    def gameEmptyCallback(self, emptyGameUUID, UUID):
         #remove the game tab for this game
         self.networkLobby.removeGame(emptyGameUUID)
     

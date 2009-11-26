@@ -42,7 +42,7 @@ class GraphicsScene(QtGui.QGraphicsScene):
         self.rejectClicks = True
     
     def unblock(self):
-        self.setForegroundBrush(QtCore.Qt.NoBrush)
+        self.setForegroundBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
         self.waitText.hide()
         self.rejectClicks = False
         

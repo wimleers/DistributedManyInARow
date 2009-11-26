@@ -46,7 +46,7 @@ class GameWidget(QtGui.QWidget):
             self.comment = info['comment']
             self.waitTime = info['waitTime']
             """
-            self.manyInARow.host(info['name'], info['comment'], info['rows'], info['cols'], info['waitTime'])
+            self.manyInARow.host(str(info['name']), str(info['comment']), info['rows'], info['cols'], info['waitTime'])
             
             
         if(type == self.JOIN_GAME):
@@ -60,6 +60,7 @@ class GameWidget(QtGui.QWidget):
     
     # Functions the user can trigger:
     def sendMessage(self):
+        print self.ui.chatEdit.text()
         message = self.ui.chatEdit.text()
         self.ui.chatEdit.clear()
         
@@ -90,7 +91,7 @@ class GameWidget(QtGui.QWidget):
     
     
     def enableClicks(self):
-        print "enableClicks"
+        print "enableClicks\n\n\n\n\n\n\n\n\n\n"
         if(self.scene != None):
             self.scene.unblock()
     
@@ -128,10 +129,8 @@ class GameWidget(QtGui.QWidget):
         self.ui.messageList.addItem(newItem)
         
     
-    def moveCallBack(self, playerUUID, move):
-        print "moveCallBack"
-        #todo: implement
-        pass
+    def moveCallBack(self, playerUUID, col, row):
+        self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
     
     def playerWonCallBack(self, winners, index):
         print "playerWonCallBack"
@@ -149,11 +148,12 @@ class GameWidget(QtGui.QWidget):
         QtGui.QMessageBox.information(self, "Game finished", "The game has finished, the winners are: " + winnerStr)
     
     def makeHoverMove(self, column):
-        valid = self.field.getRowIndexByColumn(column)
-        if(valid != -1):
+        #Todo: get the row for this colum:
+        row = 0
+        if(row != -1):
             #update the gui
-            color = self.players.getCurrentPlayerColor()
-            self.scene.makeDummyMove(column, valid, color)
+            color = QtGui.QColor(self.player.color[0], self.player.color[1], self.player.color[2])
+            self.scene.makeDummyMove(column, row, color)
         
     
     def createLayout(self):

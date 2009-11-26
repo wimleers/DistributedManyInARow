@@ -107,7 +107,7 @@ class ManyInARowGame(object):
         self.numRows     = game['numRows']
         self.numCols     = game['numCols']
         self.waitTime    = game['waitTime']
-        self.startTime   = game['startTime']
+        self.startTime   = game['starttime']
 
         # Let the other players in this game now we're joining the game. No
         # confirmation is necessary.
