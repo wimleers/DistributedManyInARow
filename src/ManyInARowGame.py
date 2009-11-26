@@ -1,6 +1,6 @@
 import time
 from DistributedGame.Game import Game
-from vieropeenrij.py import *
+from vieropeenrij import *
 
 
 class ManyInARowGameError(Exception): pass
