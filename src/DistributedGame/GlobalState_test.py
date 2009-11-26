@@ -27,15 +27,14 @@ class GlobalStateTest(unittest.TestCase):
         v1 = VectorClock()
         v2 = VectorClock()
 
-        # Fake the sending of a message. (uncomment this and the test will pass for some reason)
+        # Fake the sending of a message. 
         v1.increment(senderUUID)
         messageOne = {sessionUUID : {'message' : 'join', 'senderUUID' : senderUUID, 'originUUID' : senderUUID, 'clock' : v1}}
         with gs.lock:
            gs.outbox.put(messageOne)
-
         # Fake the receiving of a message.
-        v2.increment(senderUUID)
         v2.increment(otherSenderUUID)
+        print v2
         messageTwo = {sessionUUID : {'message' : 'test', 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
         with service.lock:
             service.inbox[senderUUID].put(messageTwo)

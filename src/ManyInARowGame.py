@@ -1,5 +1,6 @@
 import time
 from DistributedGame.Game import Game
+from vieropeenrij.py import *
 
 
 class ManyInARowGameError(Exception): pass
@@ -84,6 +85,7 @@ class ManyInARowGame(object):
         self.numCols     = numCols
         self.waitTime    = waitTime
         self.startTime   = time.time()
+        self.field = Field (numRows, numCols)
 
         # Advertise the game.
         self.service.advertiseGame(self.game.UUID,
@@ -108,6 +110,7 @@ class ManyInARowGame(object):
         self.numCols     = game['numCols']
         self.waitTime    = game['waitTime']
         self.startTime   = game['starttime']
+        self.field = Field (self.numRows, self.numCols)
 
         # Let the other players in this game now we're joining the game. No
         # confirmation is necessary.
@@ -160,14 +163,13 @@ class ManyInARowGame(object):
 
     def messageReceivedCallback(self, playerUUID, message):
         if message['type'] == self.MOVE:
-            self.guiMoveCallback(playerUUID, message['col'])
+            row = self._makeMove(playerUUID, message['col'])
+            self.guiMoveCallback(playerUUID, message['col'], row)
             # Actually make the move.
-            #@wim: de GUI zou eigenlijk een row en een col moeten meekrijgen, anders weet ik niet hoe hoog die moet staan
-            self._makeMove(playerUUID, message['col'])
             # If this move result in the current goal, we have a winner! We
             # should notify the GUI and mark this game as finished (if no
             # larger "X in a row" is possible) or update the goal.
-            if self._isWinnerForXInARow(message['col'], self.currentGoal):
+            if self._isWinnerForXInARow(message['col'], row, self.currentGoal):
                 self.winners[self.currentGoal] = playerUUID
                 self.guiWinnerCallback(self.winners, self.currentGoal)
                 # Check if the game is finished or if we should move on to the
@@ -193,6 +195,15 @@ class ManyInARowGame(object):
             self.guiPlayerRemoveCallback(player.UUID)
 
 
-    def _isWinnerForXInARow(self, col, goal):
+    def _isWinnerForXInARow(self, col, row, goal):
         """Check if the last piece at the given column matched the goal."""
-        pass
+        return self.field.checkWin (col, row, goal)        
+        
+
+    def _makeMove(self, playerUUID, col):
+        row = self.field.makeMove (col, playerUUID)
+        return row
+
+    def _makeDummyMove (self, col):
+        row = self.field.getRowIndexByColumn(col)
+        return row

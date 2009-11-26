@@ -7,6 +7,10 @@ import sqlite3
 import threading
 import time
 from collections import namedtuple as namedtuple
+import copy
+import uuid
+from MulticastMessaging import MulticastMessaging
+from optparse import OptionParser
 
 # Imports from this module.
 from VectorClock import VectorClock
@@ -321,10 +325,7 @@ class GlobalState(threading.Thread):
 
 
 if __name__ == "__main__":
-    import copy
-    import uuid
-    from MulticastMessaging import MulticastMessaging
-    from optparse import OptionParser
+    
 
     sessionUUID = str(uuid.uuid1())
     senderUUID = str(uuid.uuid1())
