@@ -1,5 +1,6 @@
 import Queue
 import threading
+import time
 from IPMulticastMessaging import IPMulticastMessaging
 from ZeroconfMessaging import ZeroconfMessaging
 
@@ -47,32 +48,26 @@ class Service(threading.Thread):
 
     def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain):
         print "SERVICE REGISTERED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s" % (sdRef.fileno(), flags, errorCode, name, regtype, domain)
-        raise NotImplemented
 
 
     def _serviceRegistrationFailedCallback(self, sdRef, flags, errorCode, errorMessage, name, regtype, domain):
         print "SERVICE REGISTRATION FAILED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, errorMessage=%s, name=%s, regtype=%s, domain=%s" % (sdRef, flags, errorCode, errorMessage, name, regtype, domain)
-        raise NotImplemented
 
 
     def _serviceUnregisteredCallback(self, serviceName, serviceType, port):
         print "SERVICE UNREGISTERED CALLBACK FIRED, params: serviceName=%s, serviceType=%s, port=%d" % (serviceName, serviceType, port)
-        raise NotImplemented
 
 
     def _peerServiceDiscoveryCallback(self, serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         print "SERVICE DISCOVERY CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
-        raise NotImplemented
 
 
     def _peerServiceRemovalCallback(self, serviceName, interfaceIndex):
         print "SERVICE REMOVAL CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d" % (serviceName, interfaceIndex)
-        raise NotImplemented
 
 
     def _peerServiceUpdateCallback(self, serviceName, interfaceIndex, fullname, hosttarget, ip, port):
         print "SERVICE UPDATE CALLBACK FIRED, params: serviceName=%s, interfaceIndex=%d, fullname=%s, hosttarget=%s, ip=%s, port=%d" % (serviceName, interfaceIndex, fullname, hosttarget, ip, port)
-        raise NotImplemented
 
 
     def _peerServiceDescriptionUpdatedCallback(self, serviceName, interfaceIndex, txtRecords, updated, deleted):
@@ -155,28 +150,52 @@ class OneToManyService(Service):
                 del self.inbox[destinationUUID]
 
 
+    def _multicastRouteIncomingMessages(self):
+        """Route incoming multicast messages to the correct destination."""
+        with self.lock:
+            with self.multicast.lock:
+                while self.multicast.inbox.qsize() > 0:
+                    packet = self.multicast.inbox.get()
+                    # print 'received packet', packet
+                    for destinationUUID in packet.keys():
+                        if self.inbox.has_key(destinationUUID):
+                            # Copy the message from the packet to the
+                            # inbox with the correct destination.
+                            message = packet[destinationUUID]
+                            self.inbox[destinationUUID].put(message)
+
+
+    def _multicastSendMessages(self):
+        """Send outgoing messages."""
+        with self.lock:
+            with self.multicast.lock:
+                while self.outbox.qsize() > 0:
+                    # Move the message from the Service outbox to the
+                    # multicast messaging outbox, so that it will be sent.
+                    message = self.outbox.get()
+                    self.multicast.outbox.put(message)
+
+
+    def _multicastProcessServiceToServiceMessages(self):
+        """Process service-to-service messages."""
+        with self.lock:
+            if self.inbox[self.SERVICE_TO_SERVICE].qsize() > 0:
+                message = self.inbox[self.SERVICE_TO_SERVICE].get()
+                self._processServiceMessage(message)
+
+
     def run(self):
         while self.alive:
-            # Route incoming messages to the correct destination.
-            with self.lock:
-                with self.multicast.lock:
-                    while self.multicast.inbox.qsize() > 0:
-                        packet = self.multicast.inbox.get()
-                        for destinationUUID in packet.keys():
-                            if inbox.has_key(destinationUUID):
-                                # Copy the message from the packet to the
-                                # inbox with the correct destination.
-                                message = packet[destinationUUID]
-                                inbox[destinationUUID] = message
+            # Multicast messages.
+            self._multicastRouteIncomingMessages()
+            self._multicastSendMessages()
+            self._multicastProcessServiceToServiceMessages()
 
-            # Send outgoing messages.
-            with self.lock:
-                with self.multicast.lock:
-                    while self.outbox.qsize() > 0:
-                        # Copy the packet from the Service outbox to the
-                        # multicast messaging outbox, so that it will be sent.
-                        packet = self.outbox.get()
-                        self.multicast.outbox.put(packet)
+            # Service descriptions.
+            # - updates of our own service description are sent automatically
+            #   by buildServiceDescription()
+            # - updates of others' service descriptions are processed
+            #   automatically through _peerServiceDescriptionUpdatedCallback
 
             # Commit suicide when asked to.
             with self.lock:
@@ -185,6 +204,7 @@ class OneToManyService(Service):
 
             # 20 refreshes per second is plenty.
             time.sleep(0.05)
+
 
 
 

@@ -18,7 +18,8 @@ class GlobalStateTest(unittest.TestCase):
         senderUUID = str(uuid.uuid1())
         otherSenderUUID = str(uuid.uuid1())
 
-        service = OneToManyService('testhost', 'testService', 1600)
+        service = OneToManyService('testhost', '_testService._tcp', 1600)
+        service.start()
         service.registerDestination(senderUUID)
 
         gs = GlobalState(service, sessionUUID, senderUUID)
@@ -55,12 +56,15 @@ class GlobalStateTest(unittest.TestCase):
         self.assertEquals (message['originUUID'], otherSenderUUID)
         self.assertEquals (message['clock'], v2)
 
+        service.kill()
+
 
     def testMultipleReceiving(self):
         sessionUUID = str(uuid.uuid1())
         senderUUID = str(uuid.uuid1())
         otherSenderUUID = str(uuid.uuid1())
-        service = OneToManyService('testhost', 'testService', 1600)
+        service = OneToManyService('testhost', '_testService._tcp', 1600)
+        service.start()
         service.registerDestination(senderUUID)
 
         gs = GlobalState(service, sessionUUID, senderUUID)
@@ -99,12 +103,15 @@ class GlobalStateTest(unittest.TestCase):
         self.assertEquals (messages[1]['message'], '2')
         self.assertEquals (messages[2]['message'], '3')
 
+        service.kill()
+
 
     def testLostMessage(self):
         sessionUUID = str(uuid.uuid1())
         senderUUID = str(uuid.uuid1())
         otherSenderUUID = str(uuid.uuid1())
-        service = OneToManyService('testhost', 'testService', 1600)
+        service = OneToManyService('testhost', '_testService._tcp', 1600)
+        service.start()
         service.registerDestination(senderUUID)
 
         gs = GlobalState(service, sessionUUID, senderUUID)
@@ -130,6 +137,8 @@ class GlobalStateTest(unittest.TestCase):
                 count = count + 1
 
         self.assertEquals(count, 0)
+
+        service.kill()
 
 
 
