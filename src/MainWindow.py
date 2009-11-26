@@ -14,18 +14,23 @@ class MainWindow(QtGui.QMainWindow):
         self.createLayout()
         self.createMenu()
         self.showMaximized()
+        self.succesBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Success", "Serive started successfully", QtGui.QMessageBox.Ok, self)
+        self.errorBox = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error", "Service registration failed, please restart.", QtGui.QMessageBox.Ok, self)
         
-        #Network
-        self.manyInARowService = ManyInARowService(self.serviceRegisteredCallback, self.serviceRegistrationFailedCallback,
-                                                   self.serviceUnregisteredCallback, self.peerServiceDiscoveredCallback,
-                                                   self.peerServiceRemovedCallback, self.gameAddedCallback,
-                                                   self.gameUpdatedCallback, self.gameEmptyCallback)
         playerAddWidget = PlayerAddWidget(self)
         localPlayerName = playerAddWidget.getPlayerInfo()
         self.localPlayer = Player(localPlayerName)
         
+        #Network
+        self.manyInARowService = ManyInARowService(self.localPlayer, self.serviceRegisteredCallback, self.serviceRegistrationFailedCallback,
+                                                   self.serviceUnregisteredCallback, self.peerServiceDiscoveredCallback,
+                                                   self.peerServiceRemovedCallback, self.playerAddedCallback, self.playerUpdatedCallback,
+                                                   self.playerLeftCallback, self.gameAddedCallback,
+                                                   self.gameUpdatedCallback, self.gameEmptyCallback)
         
     def closeEvent(self, event):
+        self.succesBox.close()
+        self.errorBox.close()
         self.manyInARowService.kill()
         event.accept()
         
@@ -71,10 +76,10 @@ class MainWindow(QtGui.QMainWindow):
         self.tabWidget.addTab(GameWidget(GameWidget.JOIN_GAME, UUID, self.localPlayer, self.manyInARowService, self.tabWidget), gameName)
         
     def serviceRegisteredCallback(self, name, regtype, port):
-        QtGui.QMessageBox.information(None, "Success", "Serive started successfully")
-    
+        self.succesBox.exec_()
+        
     def serviceRegistrationFailedCallback(self, name, errorCode, errorMessage):
-        QtGui.QMessageBox.critical(None, "Error", "Service registration failed, please restart.")
+        self.errorBox.exec_()
         self.close()
     
     def serviceUnregisteredCallback(self, serviceName, serviceType, port):
@@ -85,6 +90,15 @@ class MainWindow(QtGui.QMainWindow):
     
     def peerServiceRemovedCallback(self, serviceName, interfaceIndex):
         self.networkLobby.removePeer(serviceName, interfaceIndex)
+        
+    def playerAddedCallback(self, player):
+        pass
+    
+    def playerUpdatedCallback(self, player):
+        pass
+    
+    def playerLeftCallback(self, player):
+        pass
     
     def gameAddedCallback(self, newGame):
         gameUUID = newGame['gameUUID']
