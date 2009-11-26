@@ -34,8 +34,8 @@ class GlobalStateTest(unittest.TestCase):
         with gs.lock:
            gs.outbox.put(messageOne)
         # Fake the receiving of a message.
+        v2.increment(senderUUID)
         v2.increment(otherSenderUUID)
-        print v2
         messageTwo = {sessionUUID : {'message' : 'test', 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
         with service.lock:
             service.inbox[senderUUID].put(messageTwo)

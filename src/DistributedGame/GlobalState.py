@@ -7,10 +7,6 @@ import sqlite3
 import threading
 import time
 from collections import namedtuple as namedtuple
-import copy
-import uuid
-from MulticastMessaging import MulticastMessaging
-from optparse import OptionParser
 
 # Imports from this module.
 from VectorClock import VectorClock
@@ -320,67 +316,3 @@ class GlobalState(threading.Thread):
 
         # Stop us from running any further.
         self.alive = False
-
-
-
-
-if __name__ == "__main__":
-    
-
-    sessionUUID = str(uuid.uuid1())
-    senderUUID = str(uuid.uuid1())
-    otherSenderUUID = str(uuid.uuid1())
-    multicast = MulticastMessaging()
-
-    gs = GlobalState(sessionUUID, senderUUID, multicast)
-    gs.start()
-
-    v1 = VectorClock()
-    v2 = VectorClock()
-
-    # Fake the sending of a message.
-    v1.increment(senderUUID)
-    messageOne = {sessionUUID : {'message' : 'join', 'senderUUID' : senderUUID, 'originUUID' : senderUUID, 'clock' : v1}}
-    with gs.lock:
-        gs.outbox.put(messageOne)
-
-    # Fake the receiving of a message.
-    v2.increment(senderUUID)
-    v2.increment(otherSenderUUID)
-    messageTwo = {sessionUUID : {'message' : 'welcome', 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
-    with multicast.lock:
-        multicast.inbox.put(messageTwo)
-
-    # Fake the receiving of two message in the wrong order.
-    v2 = copy.deepcopy(v2)
-    v2.increment(otherSenderUUID)
-    messageThree = {sessionUUID : {'message' : 'Knock knock!', 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
-    v2 = copy.deepcopy(v2)
-    v2.increment(otherSenderUUID)
-    messageFour = {sessionUUID : {'message' : "Who's there?", 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
-    v2 = copy.deepcopy(v2)
-    v2.increment(otherSenderUUID)
-    messageFive = {sessionUUID : {'message' : "This joke is so old!", 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
-    with multicast.lock:
-        multicast.inbox.put(messageFour)
-        multicast.inbox.put(messageFive)
-        multicast.inbox.put(messageThree)
-
-    # Fake the loss of a message
-    v2 = copy.deepcopy(v2)
-    v2.increment(otherSenderUUID)
-    v2.increment(otherSenderUUID)
-    messageSix = {sessionUUID : {'message' : "This should never show up in the inbox because a message was lost.", 'senderUUID' : otherSenderUUID, 'originUUID' : otherSenderUUID, 'clock' : v2}}
-    with multicast.lock:
-        multicast.inbox.put(messageSix)
-
-    # Allow the thread to run.
-    time.sleep(1)
-
-    # Now print the contents of the messages in the (hopefully) ordered inbox.
-    with gs.lock:
-        while gs.inbox.qsize() > 0:
-            message = gs.inbox.get()
-            print message
-
-    gs.kill()
