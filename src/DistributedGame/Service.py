@@ -5,10 +5,13 @@ from IPMulticastMessaging import IPMulticastMessaging
 from ZeroconfMessaging import ZeroconfMessaging
 
 
+
+
+class ServiceError(Exception): pass
+class DestinationNotRegisteredError(ServiceError): pass
+
+
 class Service(threading.Thread):
-
-
-    SERVICE_TO_SERVICE = 'service-to-service'
 
 
     def __init__(self, serviceName, serviceType, port, protocolVersion=1):
@@ -38,16 +41,14 @@ class Service(threading.Thread):
         self.ownServiceDescription = {} # No need for a queue, keeping only the latest is sufficient, since it doens't convey history but the current status.
         self.serviceDescriptions = {}
 
-        # State variables.
+        # Thread state variables.
         self.alive = True
         self.die   = False
-        
-        # Other things.
         self.lock = threading.Condition()
 
 
-    def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain):
-        print "SERVICE REGISTERED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s" % (sdRef.fileno(), flags, errorCode, name, regtype, domain)
+    def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain, port):
+        print "SERVICE REGISTERED CALLBACK FIRED, params: sdRef=%d, flags=%d, errorCode=%d, name=%s, regtype=%s, domain=%s, port=%d" % (sdRef.fileno(), flags, errorCode, name, regtype, domain, port)
 
 
     def _serviceRegistrationFailedCallback(self, sdRef, flags, errorCode, errorMessage, name, regtype, domain):
@@ -80,23 +81,10 @@ class Service(threading.Thread):
             print "\t\t", key
 
 
-    def sendMessage(self, destinationUUID, message):
-        """Enqueue a message to be sent."""
-        with self.lock:
-            packet = {}
-            packet[destinationUUID] = message
-            self.outbox.put(packet)
-
-
     def setServiceDescription(self, description):
         """Set the (zeroconf) service description."""
         with self.zeroconf.lock:
             self.zeroconf.outbox.put(description)
-
-
-    def sendServiceMessage(self, message):
-        """Enqueue a service message to be sent."""
-        self.sendMessage(self.SERVICE_TO_SERVICE, message)
 
 
     def run(self):
@@ -127,6 +115,10 @@ class Service(threading.Thread):
 class OneToManyService(Service):
     """One service for many possible destinations per host."""
 
+
+    SERVICE_TO_SERVICE = 'service-to-service'
+
+
     def __init__(self, serviceName, serviceType, port, protocolVersion=1):
         super(OneToManyService, self).__init__(serviceName, serviceType, port, protocolVersion)
 
@@ -150,13 +142,49 @@ class OneToManyService(Service):
                 del self.inbox[destinationUUID]
 
 
+    def sendMessage(self, destinationUUID, message):
+        """Enqueue a message to be sent."""
+        with self.lock:
+            packet = {}
+            packet[destinationUUID] = message
+            # print '\tService.sendMessage():', message
+            self.outbox.put(packet)
+
+
+    def sendServiceMessage(self, message):
+        """Enqueue a service message to be sent."""
+        self.sendMessage(self.SERVICE_TO_SERVICE, message)
+
+
+    def countReceivedMessages(self, destinationUUID):
+        with self.lock:
+            if not self.inbox.has_key(destinationUUID):
+                raise DestinationNotRegisteredError
+            return self.inbox[destinationUUID].qsize()
+
+
+    def countReceivedServiceMessages(self):
+        return self.countReceivedMessages(self.SERVICE_TO_SERVICE)
+
+
+    def receiveMessage(self, destinationUUID):
+        with self.lock:
+            if not self.inbox.has_key(destinationUUID):
+                raise DestinationNotRegisteredError
+            return self.inbox[destinationUUID].get()
+
+
+    def receiveServiceMessage(self):
+        return self.receiveMessage(self.SERVICE_TO_SERVICE)
+
+
     def _multicastRouteIncomingMessages(self):
         """Route incoming multicast messages to the correct destination."""
         with self.lock:
             with self.multicast.lock:
                 while self.multicast.inbox.qsize() > 0:
                     packet = self.multicast.inbox.get()
-                    # print 'received packet', packet
+                    # print '\tService._multicastRouteIncomingMessages():', packet
                     for destinationUUID in packet.keys():
                         if self.inbox.has_key(destinationUUID):
                             # Copy the message from the packet to the
@@ -176,20 +204,11 @@ class OneToManyService(Service):
                     self.multicast.outbox.put(message)
 
 
-    def _multicastProcessServiceToServiceMessages(self):
-        """Process service-to-service messages."""
-        with self.lock:
-            if self.inbox[self.SERVICE_TO_SERVICE].qsize() > 0:
-                message = self.inbox[self.SERVICE_TO_SERVICE].get()
-                self._processServiceMessage(message)
-
-
     def run(self):
         while self.alive:
             # Multicast messages.
             self._multicastRouteIncomingMessages()
             self._multicastSendMessages()
-            self._multicastProcessServiceToServiceMessages()
 
             # Service descriptions.
             # - updates of our own service description are sent automatically
@@ -199,7 +218,7 @@ class OneToManyService(Service):
 
             # Commit suicide when asked to.
             with self.lock:
-                if self.die:
+                if self.die and self.outbox.qsize() == 0:
                     self._commitSuicide()
 
             # 20 refreshes per second is plenty.
@@ -213,5 +232,17 @@ class OneToOneService(Service):
 
     def __init__(self, serviceName, serviceType, port, protocolVersion=1):
         super(OneToOne, self).__init__(serviceName, serviceType, port, protocolVersion)
+
+
+    def sendMessage(self, message):
+        with self.lock:
+            with self.multicast.lock:
+                self.multicast.outbox.put(message)
+
+
+    def receiveMessage(self):
+        with self.lock:
+            with self.multicast.lock:
+                return self.multicast.inbox.get()
 
         

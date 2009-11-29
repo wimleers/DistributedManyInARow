@@ -1,4 +1,5 @@
 # General imports.
+import copy
 import cPickle
 import os
 import Queue
@@ -64,12 +65,12 @@ class GlobalState(threading.Thread):
         self.peerWaitingTime    = int(peerWaitingTime)
         self.messageWaitingTime = int(messageWaitingTime)
 
-        # State variables.
+        # Thread state variables.
         self.alive = True
         self.die = False
+        self.lock = threading.Condition()
 
         # Other things.
-        self.lock = threading.Condition()
         self._startedWaitingForMessages = None
         self.clock = VectorClock()
         self.clock.add(self.senderUUID)
@@ -80,6 +81,10 @@ class GlobalState(threading.Thread):
         self._dbCon = None
         self._dbCur = None
 
+        # Register this Global State's session UUID with the service as a
+        # valid destination.
+        self.service.registerDestination(self.sessionUUID)
+
         super(GlobalState, self).__init__()
 
 
@@ -89,6 +94,9 @@ class GlobalState(threading.Thread):
     ##########################################################################
 
     def __del__(self):
+        # Remove this Global State's session UUID as a valid destination.
+        self.service.removeDestination(self.sessionUUID)
+        # Remove the database that was used for persistent storage.
         if os.path.exists(self._dbFile):
             os.remove(self._dbFile)
 
@@ -150,7 +158,7 @@ class GlobalState(threading.Thread):
         """
 
         messages = {}
-        self._dbCur.execute("SELECT * FROM MessageHistory WHERE senderUUID = ? AND ownClockValue > ? AND ownClockValue < ?", (self.UUID, minClockValue, maxClockValue))
+        self._dbCur.execute("SELECT * FROM MessageHistory WHERE senderUUID = ? AND ownClockValue > ? AND ownClockValue < ?", (self.senderUUID, minClockValue, maxClockValue))
         for message in map(MessageRecord._make, self._dbCur.fetchall()):
             messages[message.ownClockValue] = message
         return messages
@@ -163,16 +171,34 @@ class GlobalState(threading.Thread):
     def sendMessage(self, message):
         """Enqueue a message to be sent."""
         with self.lock:
-            packet = {}
-            packet[self.sessionUUID] = message
+            # print "\tGlobalState.sendMessage()", message
             self.outbox.put(message)
 
 
-    def receiveMessage(self):
-        """Receive all messages waiting in the inbox."""
+    def countReceivedMessages(self):
         with self.lock:
-            while self.inbox.qsize() > 0:
-                yield self.inbox.get()
+            return self.inbox.qsize()
+
+
+    def receiveMessage(self):
+        with self.lock:
+            return self.inbox.get()
+
+
+    def _wrapMessage(self, message):
+        """Wrap a message in an envelope to prepare it for sending."""
+
+        envelope = {}
+        # Increment the vector clock for our envelope.
+        self.clock.increment(self.senderUUID)
+        # Add the clock to the envelope.
+        envelope['clock'] = copy.deepcopy(self.clock)
+        # Add the sender UUUID and the original sender UUID to the envelope
+        # (which is always ourselves).
+        envelope['senderUUID'] = envelope['originUUID'] = self.senderUUID
+        # Store the message in the envelope.
+        envelope['message'] = message
+        return envelope
 
 
     def _sendMessage(self, message):
@@ -180,44 +206,44 @@ class GlobalState(threading.Thread):
         it on to the service outbox.
         """
 
-        # Increment the vector clock for our message.
-        self.clock.increment(self.senderUUID)
+        envelope = self._wrapMessage(message)
 
-        # Add the clock to the message.
-        message['clock'] = self.clock
-
-        # Store the message.
-        self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, ownClockValue, message) VALUES(?, ?, ?, ?, ?, ?)", (time.time(), self.senderUUID, self.senderUUID, self.clock.dumps(), self.clock[self.senderUUID], cPickle.dumps(message)))
+        # Store the envelope.
+        self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, ownClockValue, message) VALUES(?, ?, ?, ?, ?, ?)", (time.time(), self.senderUUID, self.senderUUID, self.clock.dumps(), self.clock[self.senderUUID], cPickle.dumps(envelope)))
         self._dbCon.commit()
 
-        # Use the passed in service implementation to send the message.
+        # Use the passed in service implementation to send the envelope.
         with self.service.lock:
-            self.service.outbox.put(message)
+            # print "\tGlobalState._sendMessage()", envelope
+            self.service.sendMessage(self.sessionUUID, envelope)
             self.service.lock.notifyAll()
 
 
-    def _receiveMessage(self, message):
+    def _receiveMessage(self, envelope):
         """Store a message in the global state and put it in the inbox."""
 
         # Merge the clocks and increment our own component.
-        self.clock.merge(message['clock'])
-        message['clock'] = self.clock
+        self.clock.merge(envelope['clock'])
+        envelope['clock'] = self.clock
 
         # Store the message.
-        self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, message) VALUES(?, ?, ?, ?, ?)", (time.time(), message['senderUUID'], message['originUUID'], self.clock.dumps(), cPickle.dumps(message)))
+        self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, message) VALUES(?, ?, ?, ?, ?)", (time.time(), envelope['senderUUID'], envelope['originUUID'], self.clock.dumps(), cPickle.dumps(envelope)))
         self._dbCon.commit()
 
         # Move the message to the inbox queue, so it can be retrieved.
         with self.lock:
-            self.inbox.put(message)
+            self.inbox.put((envelope['originUUID'], envelope['message']))
 
 
     def erase(self):
         """Erase the global state."""
-        self._dbCur.execute("DROP TABLE MessageHistory")
+        # Remove this Global State's session UUID as a valid destination.
+        self.service.removeDestination(self.sessionUUID)
+        # Reset the database.
+        self._dbCur.execute("DELETE FROM MessageHistory")
         self._dbCon.commit()
         self.clock = VectorClock()
-        self.clock.add(self.UUID)
+        self.clock.add(self.senderUUID)
 
 
     def run(self):
@@ -227,18 +253,16 @@ class GlobalState(threading.Thread):
             # Check if it's time to send liveness messages.
             # TODO
 
-            # Retrieve incoming messages and store them in the waiting room.
+            # Retrieve incoming messages and store them in the waiting room.            
             with self.lock:
                 with self.service.lock:
-                    while self.service.inbox[self.senderUUID].qsize() > 0:
-                        message = self.service.inbox[self.senderUUID].get()
-                        # Check if the message has a header that is addressed
-                        # to the session we're participating in.
-                        if message.has_key(self.sessionUUID): # TODO: this obviously fails when another thread/module wants to retrieves messages from the queue, so we need to add a router in between
-                            content = message[self.sessionUUID]
-                            clock = content['clock']
-                            self.waitingRoom[clock] = content
-                            print "moved message to waiting room with clock", clock
+                    if self.service.countReceivedMessages(self.sessionUUID) > 0:
+                        envelope = self.service.receiveMessage(self.sessionUUID)
+                        # Ignore our own messages.
+                        if envelope['senderUUID'] != self.senderUUID:
+                            clock = envelope['clock']
+                            self.waitingRoom[clock] = envelope
+                            # print "\tGlobalstate.run(): moved message to waiting room with clock", clock
 
             # Sending can always happen immediately. The application that uses
             # this module only sends messages if they either don't require
@@ -248,7 +272,6 @@ class GlobalState(threading.Thread):
                 while self.outbox.qsize() > 0:
                     message = self.outbox.get()
                     self._sendMessage(message)
-                    print "sent message with clock", message['clock']
 
             # If there are incoming messages, attempt to process them. Delayed
             # messages will be waited for, lost messages will be re-requested.
@@ -266,12 +289,12 @@ class GlobalState(threading.Thread):
                     # of 2 ids with one +1 and the other one -1), then we can
                     # process it. This is necessary to guarantee correct order.
                     lowestClock = sortedClocks[0]
-                    print "current clock", self.clock
-                    print "lowest clock", lowestClock
+                    # print "current clock", self.clock
+                    # print "lowest clock", lowestClock
                     if self.clock.isImmediatelyFollowedBy(lowestClock) or self.clock.isImmediatelyConcurrentWith(lowestClock):
                         self._receiveMessage(self.waitingRoom[lowestClock])
                         del self.waitingRoom[lowestClock]
-                        print "moved message from waiting room to inbox, clock:", lowestClock
+                        # print "GlobalState.run(): moved message from waiting room to inbox, clock:", lowestClock
 
                     # If the lowest clock didn't qualify to be processed, then
                     # none of the clocks of the messages in the inbox are.
@@ -296,7 +319,7 @@ class GlobalState(threading.Thread):
 
             # Commit suicide when asked to.
             with self.lock:
-                if self.die:
+                if self.die and self.outbox.qsize() == 0:
                     self._commitSuicide()
 
             # 20 refreshes per second is plenty.
@@ -304,7 +327,10 @@ class GlobalState(threading.Thread):
 
 
     def kill(self):
-        # Let the thread know it should commit suicide.
+        # Let the thread know it should commit suicide. But first let it send
+        # all remaining messages.
+        # while self.outbox.qsize() > 0:
+        #     if 
         with self.lock:
             self.die = True
 

@@ -8,29 +8,29 @@ class InvalidCallbackError(ManyInARowGameError): pass
 class OneToManyServiceError(ManyInARowGameError): pass
 
 
-class ManyInARowGame(object):
+class ManyInARowGame(Game):
 
-    MOVE, CHAT, JOIN, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(6)
+    MOVE, CHAT, JOIN, WELCOME, LEAVE = range(5)
 
-    def __init__(self, service, player,
+    def __init__(self, service, player, UUID,
+                 name, description, numRows, numCols, waitTime,
                  guiChatCallback,
                  guiJoinedGameCallback,
-                 guiPlayerAddCallback, guiPlayerUpdateCallback, guiPlayerRemoveCallback,
+                 guiPlayerJoinedCallback, guiPlayerLeftCallback,
                  guiMoveCallback, guiCanMakeMoveCallback,
                  guiWinnerCallback,
                  guiFinishedCallback):
+        super(ManyInARowGame, self).__init__(service, player, UUID)
 
         # Callbacks.
         if not callable(guiChatCallback):
             raise InvalidCallbackError, "guiChatCallback"
         if not callable(guiJoinedGameCallback):
             raise InvalidCallbackError, "guiJoinedGameCallback"
-        if not callable(guiPlayerAddCallback):
-            raise InvalidCallbackError, "guiPlayerAddCallback"
-        if not callable(guiPlayerUpdateCallback):
-            raise InvalidCallbackError, "guiPlayerUpdateCallback"
-        if not callable(guiPlayerRemoveCallback):
-            raise InvalidCallbackError, "guiPlayerRemoveCallback"
+        if not callable(guiPlayerJoinedCallback):
+            raise InvalidCallbackError, "guiPlayerJoinedCallback"
+        if not callable(guiPlayerLeftCallback):
+            raise InvalidCallbackError, "guiPlayerLeftCallback"
         if not callable(guiMoveCallback):
             raise InvalidCallbackError, "guiMoveCallback"
         if not callable(guiCanMakeMoveCallback):
@@ -42,21 +42,23 @@ class ManyInARowGame(object):
         
         self.guiChatCallback         = guiChatCallback
         self.guiJoinedGameCallback   = guiJoinedGameCallback
-        self.guiPlayerAddCallback    = guiPlayerAddCallback
-        self.guiPlayerUpdateCallback = guiPlayerUpdateCallback
-        self.guiPlayerRemoveCallback = guiPlayerRemoveCallback
+        self.guiPlayerJoinedCallback = guiPlayerJoinedCallback
+        self.guiPlayerLeftCallback   = guiPlayerLeftCallback
         self.guiMoveCallback         = guiMoveCallback
         self.guiCanMakeMoveCallback  = guiCanMakeMoveCallback
         self.guiWinnerCallback       = guiWinnerCallback
         self.guiFinishedCallback     = guiFinishedCallback
 
         # Game settings
-        self.name        = None
-        self.description = None
-        self.numRows     = None
-        self.numCols     = None
-        self.waitTime    = None
-        self.startTime   = None        
+        self.gameName    = name
+        self.description = description
+        self.numRows     = numRows
+        self.numCols     = numCols
+        self.waitTime    = waitTime
+        self.startTime   = time.time()
+
+        # Game field.
+        self.field = Field(numRows, numCols)
 
         # Game state.
         self.moveMessage                   = None
@@ -64,87 +66,66 @@ class ManyInARowGame(object):
         self.currentGoal                   = 4 # 4 is always the initial goal
         self.finished                      = False
         self.canMakeMoveAfterMutexAcquired = False
-        self.playing                       = False
-
-        # Create the underlying distributed game and pass it the Player object.
-        self.service = service
-        self.player  = player
-        self.game    = Game(self.service, self.player)
 
 
-    def __del__(self):
-        if self.playing:
-            self.service.leaveGame(self.game.UUID)
+    @classmethod
+    def hostGame(cls, service, player, *gameSettingsAndCallbacks):
+        game = cls(service, player, None, *gameSettingsAndCallbacks)
 
-
-    def host(self, name, description, numRows, numCols, waitTime):
-        # Store the game settings.
-        self.name        = name
-        self.description = description
-        self.numRows     = numRows
-        self.numCols     = numCols
-        self.waitTime    = waitTime
-        self.startTime   = time.time()
-        self.field = Field (numRows, numCols)
-
-        # Advertise the game.
-        self.service.advertiseGame(self.game.UUID,
-                                   self.name, self.description,
-                                   self.numRows, self.numCols,
-                                   self.waitTime, self.startTime)
-        self.playing = True
+        # Let the service know we're hosting a game, so it can be advertised.
+        game.service.hostGame(game.UUID,
+                              game.gameName, game.description,
+                              game.numRows, game.numCols,
+                              game.waitTime, game.startTime)
+        game.playing = True
 
         # Let the GUI know that moves may now be made.
-        self._guiCanMakeMove()
-        
-        
-    def join(self, gameUUID):
-        # Update the UUID of the DistributedGame.Game that was created.
-        self.game.UUID = gameUUID
+        game._guiCanMakeMove()
 
-        # Store the game settings.
-        game = self.service.games[gameUUID]
-        self.name        = game['name']
-        self.description = game['description']
-        self.numRows     = game['numRows']
-        self.numCols     = game['numCols']
-        self.waitTime    = game['waitTime']
-        self.startTime   = game['starttime']
-        self.field = Field (self.numRows, self.numCols)
+        return game
+
+
+    @classmethod
+    def joinGame(cls, service, player, gameUUID, *gameSettingsAndCallbacks):
+        game = cls(service, player, gameUUID, *gameSettingsAndCallbacks)
 
         # Let the other players in this game now we're joining the game. No
-        # confirmation is necessary.
-        self.game.sendMessage({'type' : self.JOIN, 'player' : self.player})
+        # confirmation is necessary. Also send the player object because the
+        # receiver may not yet have received the Player through the service
+        # description via zeroconf.
+        game.sendMessage({'type' : game.JOIN, 'player' : game.player})
 
         # Also let the service know we've joined the game: this is necessary
         # for the game listing.
-        self.service.joinGame(gameUUID)
-        self.playing = True
+        game.service.joinGame(game.UUID)
+        game.playing = True
 
         # Let the GUI know we successfully joined a game (because no join)
-        self.guiJoinedGameCallback(self.name, self.description, self.numRows, self.numCols, self.waitTime, self.startTime)
+        game.guiJoinedGameCallback(game.UUID, game.gameName, game.description, game.numRows, game.numCols, game.waitTime, game.startTime)
 
         # Let the GUI know that moves may now be made.
         # TODO: the message history must be retrieved completely before the
         # user may start making moves.
-        self._guiCanMakeMove()
+        game._guiCanMakeMove()
+
+        return game
 
 
     def makeMove(self, col):
         self.moveMessage = {'type' : self.MOVE, 'col' : col}
-        self.game.acquireMutex(self.mutexAcquiredCallback)
+        self.acquireMutex(self.mutexAcquiredCallback)
         timer = Timer(self.waitTime, self._guiCanMakeMove)
         timer.start()
 
 
     def getHistory(self, minId=0):
-        return self.game.getHistory(minId)
+        return self.getHistory(minId)
 
 
     def mutexAcquiredCallback(self):
-        self.game.sendMessage(self.moveMessage)
+        self.sendMessage(self.moveMessage)
         self.moveMessage = None
-        self.game.releaseMutex()
+        self.releaseMutex()
         if self.canMakeMoveAfterMutexAcquired:
             self._guiCanMakeMove()
 
@@ -158,11 +139,11 @@ class ManyInARowGame(object):
         
 
     def sendChatMessage(self, message):
-        self.game.sendMessage({'type' : self.CHAT, 'message' : message})
+        self.sendMessage({'type' : self.CHAT, 'message' : message})
 
 
-    def messageReceivedCallback(self, playerUUID, message):
-        if message['type'] == self.MOVE:
+    def messageReceivedCallback(self, playerUUID, type, message):
+        if type == self.MOVE:
             row = self._makeMove(playerUUID, message['col'])
             self.guiMoveCallback(playerUUID, message['col'], row)
             # Actually make the move.
@@ -179,20 +160,24 @@ class ManyInARowGame(object):
                     self.guiFinishedCallback(self.winners)
                 else:
                     self.currentGoal += 1
-        elif message['type'] == self.CHAT:
+        elif type == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
-        elif message['type'] == self.PLAYER_ADD:
+        elif type == self.JOIN:
             player = message['player']
-            self.game.players[playerUUID] = player
-            self.guiPlayerAddCallback(playerUUID, player)
-        elif message['type'] == self.PLAYER_UPDATE:
-            player = message['player']
-            self.game.players[playerUUID] = player
-            self.guiPlayerUpdateCallback(player.UUID, player)
-        elif message['type'] == self.PLAYER_REMOVE:
-            player = message['player']
-            del self.game.players[playerUUID]
-            self.guiPlayerRemoveCallback(player.UUID)
+            self.players[playerUUID] = player
+            # Send a WELCOME message as a reply, to let the player who joined
+            # get to know all players
+            self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})
+            # Notify the GUI.
+            self.guiPlayerJoinedCallback(playerUUID, player, player.name)
+        elif type == self.WELCOME:
+            player = message['I am']
+            self.players[playerUUID] = player
+            # Notify the GUI.
+            self.guiPlayerJoinedCallback(playerUUID, player, player.name)
+        elif type == self.LEAVE:
+            del self.players[playerUUID]
+            self.guiPlayerLeftCallback(playerUUID)
 
 
     def _isWinnerForXInARow(self, col, row, goal):
@@ -204,6 +189,38 @@ class ManyInARowGame(object):
         row = self.field.makeMove (col, playerUUID)
         return row
 
+
     def _makeDummyMove (self, col):
         row = self.field.getRowIndexByColumn(col)
         return row
+
+
+    def run(self):
+        while self.alive:
+            # Receive messages and call the appropriate callback.
+            with self.lock:
+                if self.countReceivedMessages() > 0:
+                    (senderUUID, message) = self.receiveMessage()
+                    print 'MSG', senderUUID, message
+                    if message['type'] == self.MUTEX_MESSAGE_TYPE:
+                        self.processMutexMessage(message)
+                    else:
+                        self.messageReceivedCallback(senderUUID, message['type'], message)            
+
+            # Commit suicide when asked to.
+            with self.lock:
+                if self.die:
+                    self._commitSuicide()
+
+            # 20 refreshes per second is plenty.
+            time.sleep(0.05)
+
+
+    def kill(self):
+        # Let the other players in this game now we're leaving the game.
+        self.sendMessage({'type' : self.LEAVE})
+        # Ensure the Service is aware of this as well, so the service
+        # description can be updated.
+        self.service.leaveGame(self.UUID)
+
+        super(ManyInARowGame, self).kill()

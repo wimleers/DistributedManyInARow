@@ -131,7 +131,7 @@ class ZeroconfMessaging(threading.Thread):
 
             # Commit suicide when asked to.
             with self.lock:
-                if self.die:
+                if self.die and self.outbox.qsize() == 0:
                     self._commitSuicide()
 
             # Processing the queues 50 times per second is sufficient.

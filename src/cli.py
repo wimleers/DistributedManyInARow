@@ -6,6 +6,16 @@ from ManyInARowService import ManyInARowService
 from ManyInARowGame import ManyInARowGame
 
 
+parser = OptionParser()
+parser.add_option("-l", "--listenOnly", action="store_true", dest="listenOnly",
+                  help="listen only (don't broadcast)")
+(options, args) = parser.parse_args()
+if options.listenOnly:
+    playerName = 'Listener'
+else:
+    playerName = 'Jos'
+
+
 # Copied from django.utils.functional
 def curry(_curried_func, *args, **kwargs):
     def _curried(*moreargs, **morekwargs):
@@ -19,17 +29,42 @@ def genericCallback(type, name, *args):
            \tcallback name: "%s" \n\
            \tparams:' % (type, name), args
 
+serviceCallbackNames = [
+   'guiServiceRegisteredCallback',
+   'guiServiceRegistrationFailedCallback',
+   'guiServiceUnregisteredCallback',
+   'guiPeerServiceDiscoveredCallback',
+   'guiPeerServiceRemovedCallback',
+   'guiPlayerAddedCallback',
+   'guiPlayerUpdatedCallback',
+   'guiPlayerLeftCallback',
+   'guiGameAddedCallback',
+   'guiGameUpdatedCallback',
+   'guiGameEmptyCallback',
+]
+serviceCallbacks = [curry(genericCallback, 'SERVICE', name) for name in serviceCallbackNames]
+gameCallbackNames = [
+    'guiChatCallback',
+    'guiJoinedGameCallback',
+    'guiPlayerJoinedCallback',
+    'guiPlayerLeftCallback',
+    'guiMoveCallback',
+    'guiCanMakeMoveCallback',
+    'guiWinnerCallback',
+    'guiFinishedCallback',
+]
+gameCallbacks = [curry(genericCallback, 'GAME', name) for name in gameCallbackNames]
+game = object()
 
+def guiGameAddedCallback(gameUUID, gameSettings):
+    genericCallback('GAME', 'guiGameAddedCallback', gameUUID, gameSettings)
+    print "[CLI] joining the game %s with UUID %s" % (gameSettings['name'], gameUUID)
+    global game
+    game = ManyInARowGame.joinGame(service, player, gameUUID,
+                               gameSettings['name'], gameSettings['description'], gameSettings['numRows'], gameSettings['numCols'], gameSettings['waitTime'],
+                               *gameCallbacks)
+    game.start()
 
-
-parser = OptionParser()
-parser.add_option("-l", "--listenOnly", action="store_true", dest="listenOnly",
-                  help="listen only (don't broadcast)")
-(options, args) = parser.parse_args()
-if options.listenOnly:
-    playerName = 'Listener'
-else:
-    playerName = 'Jos'
 
 
 
@@ -40,20 +75,10 @@ print "[CLI] Created player %s with color (%d, %d, %d)." % (player.name, player.
 
 
 # Start the ManyInARow service.
-serviceCallbackNames = [
-    'guiServiceRegisteredCallback',
-    'guiServiceRegistrationFailedCallback',
-    'guiServiceUnregisteredCallback',
-    'guiPeerServiceDiscoveredCallback',
-    'guiPeerServiceRemovedCallback',
-    'guiPlayerAddedCallback',
-    'guiPlayerUpdatedCallback',
-    'guiPlayerLeftCallback',
-    'guiGameAddedCallback',
-    'guiGameUpdatedCallback',
-    'guiGameEmptyCallback',
-]
-serviceCallbacks = [curry(genericCallback, 'SERVICE', name) for name in serviceCallbackNames]
+if options.listenOnly:
+    # When listening, join the game created by the non-listener.
+    index = serviceCallbackNames.index('guiGameAddedCallback')
+    serviceCallbacks[index] = guiGameAddedCallback
 service = ManyInARowService(player, *serviceCallbacks)
 service.start()
 print "[CLI] Started ManyInARowService."
@@ -62,43 +87,43 @@ print "[CLI] Started ManyInARowService."
 # guiServiceRegisteredCallback callback.
 time.sleep(1.5)
 
+
 # Start a ManyInARow game.
-gameCallbackNames = [
-    'guiChatCallback',
-    'guiJoinedGameCallback',
-    'guiPlayerAddCallback',
-    'guiPlayerUpdateCallback',
-    'guiPlayerRemoveCallback',
-    'guiMoveCallback',
-    'guiCanMakeMoveCallback',
-    'guiWinnerCallback',
-    'guiFinishedCallback',
-]
-gameCallbacks = [curry(genericCallback, 'GAME', name) for name in gameCallbackNames]
-game = ManyInARowGame(service, player, *gameCallbacks)
-print "[CLI] Started ManyInARowGame."
+name        = 'Ubergame'
+description = 'Zis is dah ubergame!'
+numRows     = 10
+numCols     = 12
+waitTime    = 3
 
 if not options.listenOnly:
-    print "[CLI] Hosting game 'Ubergame'."
-    gameSettings = {
-        'name'        : 'Ubergame',
-        'description' : 'Zis is dah ubergame!',
-        'numRows'     : 10,
-        'numCols'     : 12,
-        'waitTime'    : 3,
-    }
-    game.host(**gameSettings)
-    time.sleep(0.5)
+    print "[CLI] Hosting ManyInARowGame 'Ubergame'."
+    game = ManyInARowGame.hostGame(service, player, name, description, numRows, numCols, waitTime, *gameCallbacks)
+    game.start()
+    time.sleep(2)
 
     print "[CLI] Sending chat message."
     game.sendChatMessage("Guten tag, anybody around?")
     time.sleep(0.5)
 else:
-    time.sleep(5)
+    time.sleep(2)
 
+time.sleep(5)
+
+print "[CLI] Game stats:"
+print game.stats()
+
+print "[CLI] Game's GlobalState's waiting room:"
+print game.globalState.waitingRoom
+
+# Let the listener wait for Jos to leave.
+if options.listenOnly:
+    time.sleep(10)
 print "[CLI] Leaving the game 'Ubergame'."
-del game
+game.kill()
 time.sleep(0.5)
+
+print "[CLI] Service stats:"
+print service.stats()
 
 print "[CLI] Stopping the ManyInARowService."
 service.kill()

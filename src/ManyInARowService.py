@@ -12,7 +12,7 @@ class ManyInARowService(OneToManyService):
     MOVE, CHAT, PLAYER_ADD, PLAYER_UPDATE, PLAYER_REMOVE = range(5)
 
     SERVICE_NAME = platform.node(), # e.g. "WimLeers.local"
-    SERVICE_TYPE = '_manyinarow._tcp'
+    SERVICE_TYPE = '_Many_In_A_Row._tcp'
     SERVICE_PORT = 1337
     SERVICE_PROT = 1
 
@@ -67,7 +67,6 @@ class ManyInARowService(OneToManyService):
         self.player            = player
         self.otherPlayers      = {}
         self.games             = {}
-        self.participatedGames = []
         
         # Broadcast the updated game list.
         self.buildServiceDescription()
@@ -123,7 +122,7 @@ class ManyInARowService(OneToManyService):
             del description['player']
 
         # Retrieve the player object for this service description update.
-        serviceDescriptionForPlayer = self.otherPlayers[serviceName]
+        player = self.otherPlayers[serviceName]
 
         # Now that we've updated the player object, let's look at the games
         # currently going on.
@@ -149,12 +148,12 @@ class ManyInARowService(OneToManyService):
             if self.games.has_key(gameUUID):
                 # If this player IS PARTICIPATING in this game, but is NOT yet IN
                 # OUR LIST of players for the game, ADD him. 
-                if game['participating'] and not player in self.games[gameUUID]['players']:
-                    self.games[gameUUID]['players'].append(player)
+                if game['participating'] and not player.UUID in self.games[gameUUID]['players']:
+                    self.games[gameUUID]['players'].append(player.UUID)
                 # If this player IS NOT PARTICIPATING in this game, but is IN OUR
                 # LIST of players for the game, REMOVE him. 
-                elif not game['participating'] and player in self.games[gameUUID]['players']:
-                    self.games[gameUUID]['players'].remove(player)
+                elif not game['participating'] and player.UUID in self.games[gameUUID]['players']:
+                    self.games[gameUUID]['players'].remove(player.UUID)
                     # If there are no more players in this game, then call the
                     # guiGameEmptyCallback callback, delete it and notify the GUI.
                     if len(self.games[gameUUID]['players']) == 0:
@@ -185,57 +184,53 @@ class ManyInARowService(OneToManyService):
         games = copy.deepcopy(self.games)
         for gameUUID, game in games.items():
             description[gameUUID] = game
-            description[gameUUID]['participating'] = (gameUUID in self.participatedGames)
+            description[gameUUID]['participating'] = (self.player.UUID in self.games[gameUUID]['players'])
             del description[gameUUID]['players']
 
-        # Set this new description.
-        with self.zeroconf.lock:
-            self.zeroconf.outbox.put(description)
+        # Broadcast the updated description if it's any different.
+        if self.ownServiceDescription != description:
+            # Store the new description.
+            self.ownServiceDescription = description
 
-        # Store the new description.
-        self.ownServiceDescription = description
+            # Set this new description.
+            with self.zeroconf.lock:
+                self.zeroconf.outbox.put(description)
 
 
-    def advertiseGame(self, gameUUID, name, description, numRows, numCols, waitTime, startTime):
+    def hostGame(self, gameUUID, name, description, numRows, numCols, waitTime, startTime):
         with self.lock:
-            # Register this game UUID as a destination in the Service.
-            self.registerDestination(gameUUID)
             # Update the current game list.
             self.games[gameUUID] = {
-                'name'        : name,          # 20  characters
-                'description' : description,   # 100 characters
-                'numRows'     : numRows,       # 1-2 characters
-                'numCols'     : numCols,       # 1-2 characters
-                'waitTime'    : waitTime,      # 1-2 characters
-                'starttime'   : startTime,     # 18  charachters
-                'players'     : [self.player], # Not sent with the service description.
+                'name'        : name,        # 20  characters
+                'description' : description, # 100 characters
+                'numRows'     : numRows,     # 1-2 characters
+                'numCols'     : numCols,     # 1-2 characters
+                'waitTime'    : waitTime,    # 1-2 characters
+                'starttime'   : startTime,   # 18  charachters
+                'players'     : [self.player.UUID], # Not sent with the service description.
             }
-            # Update list of games we're participating in.
-            self.participatedGames.append(gameUUID)
             # Broadcast the updated game list.
             self.buildServiceDescription()
 
 
     def joinGame(self, gameUUID):
         with self.lock:
-            # Register this game UUID as a destination in the Service.
-            self.registerDestination(gameUUID)
-            # Update list of games we're participating in.
-            self.participatedGames.append(gameUUID)
+            # Update the game list.
+            self.games[gameUUID]['players'].append(self.player.UUID)
             # Broadcast the updated game list.
             self.buildServiceDescription()
 
 
     def leaveGame(self, gameUUID):
         with self.lock:
-            # Remove this game UUID as a destination in the Service.
-            self.removeDestination(gameUUID)
-            # Update list of games we're participating in.
-            self.participatedGames.remove(gameUUID)
+            # Update the game list.
+            self.games[gameUUID]['players'].remove(self.player.UUID)
             # Broadcast the updated game list.
             self.buildServiceDescription()
 
-
-    def _processServiceMessage(self, message):
-        print 'INCOMING SERVICE MESSAGE', message
-
+    def stats(self):
+        stats = {
+            'otherPlayers' : copy.deepcopy(self.otherPlayers),
+            'games'        : copy.deepcopy(self.games),
+        }
+        return stats
