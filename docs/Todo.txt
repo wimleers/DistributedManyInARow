@@ -1,9 +1,20 @@
-Gui:    - pauze inlassen tussen 2 zetten
-        - preview van blokje laten zien ( waar het zal neerkomen ) -->DONE
-        - meerdere games (tabs) --> DONE
-        - chat per game --> DONE
-        - game statistics: play time, welke players, kleur van players, ...
-        
-        - log in apart widget
-        - opmaak zie papier Wim
-        - 
+GUI:
+- pauze inlassen tussen 2 zetten
+✓ preview van blokje laten zien ( waar het zal neerkomen ) -->DONE
+✓ meerdere games (tabs) --> DONE
+✓ chat per game --> DONE
+- game statistics: play time, welke players, kleur van players, ...
+- log in apart widget
+- opmaak zie papier Wim
+
+
+Internals:
+- Game: ondersteuning voor mutex
+- Game: history methods zijn nog niet ge-unit-test dus compleet ongetest en mogelijk niet werkend
+- GlobalState/ManyInARowGame: gestorven processen detecteren (keep-alive service-to-service messages)
+- GlobalState/ManyInARowGame: "late join" ondersteunen: "REQUEST_HISTORY" type, automatisch 1 proces selecteren (a.d.h.v de UUID?) die de hele history doorstuurt (game-to-game)
+- GlobalState/ManyInARowGame: logica voor "late join" moet ook bruikbaar zijn voor packet loss
+
+
+Docs:
+- [WIM] Schema + tekst over networking shizzle.
