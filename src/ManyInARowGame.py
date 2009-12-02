@@ -171,20 +171,25 @@ class ManyInARowGame(Game):
         elif type == self.JOIN:
             if playerUUID != self.player.UUID:
                 player = message['player']
-                self.players[playerUUID] = player
+                self.otherPlayers[playerUUID] = player
                 # Send a WELCOME message as a reply, to let the player who joined
                 # get to know all players
                 self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})
+            else:
+                player = self.player
             # Notify the GUI.
-            self.guiPlayerJoinedCallback(playerUUID, self.players[playerUUID], self.players[playerUUID].name)
+            self.guiPlayerJoinedCallback(playerUUID, player)
         elif type == self.WELCOME:
-            player = message['I am']
-            self.players[playerUUID] = player
+            if playerUUID != self.player.UUID:
+                player = message['I am']
+                self.otherPlayers[playerUUID] = player
+            else:
+                player = self.player
             # Notify the GUI.
             self.guiPlayerJoinedCallback(playerUUID, player, player.name)
         elif type == self.LEAVE:
             if playerUUID != self.player.UUID:
-                del self.players[playerUUID]
+                del self.otherPlayers[playerUUID]
                 self.guiPlayerLeftCallback(playerUUID)
 
 
@@ -225,7 +230,6 @@ class ManyInARowGame(Game):
 
 
     def kill(self):
-        del self.players[self.player.UUID]
         # Let the other players in this game now we're leaving the game.
         self.sendMessage({'type' : self.LEAVE})
         # Ensure the Service is aware of this as well, so the service

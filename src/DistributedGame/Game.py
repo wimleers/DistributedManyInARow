@@ -1,4 +1,5 @@
 import copy
+import Queue
 import threading
 import uuid
 
@@ -31,8 +32,7 @@ class Game(threading.Thread):
         if not isinstance(player, Player):
             raise PlayerError
         self.player = player
-        self.players = {}
-        self.players[self.player.UUID] = player
+        self.otherPlayers = {}
 
         # Generate the UUID for this Game when necessary.
         if UUID == None:
@@ -46,6 +46,7 @@ class Game(threading.Thread):
 
         # Initialize the mutex state.
         self.mutex = self.RELEASED
+        self.mutexWantedQueue = Queue.Queue()
 
         # Thread state variables.
         self.alive = True
@@ -91,18 +92,62 @@ class Game(threading.Thread):
     #
 
     def acquireMutex(self):
-        self.globalState.sendMessage({'type' : MUTEX_MESSAGE_TYPE, 'status' : self.mutex})
+        with self.lock:
+            self.mutex = self.WANTED
+            self.agreementWantedFromPlayers   = [playerUUID for playerUUID in self.otherPlayers.keys()]
+            self.agreementReceivedFromPlayers = [False for playerUUID in agreementWantedFromPlayers]
+            self.globalState.sendMessage({'type' : MUTEX_MESSAGE_TYPE, 'action' : self.WANTED})
 
 
     def releaseMutex(self):
-        pass
+        with self.lock:
+            self.mutex = self.RELEASED
+            while self.mutexWantedQueue.qsize() > 0:
+                playerUUID = self.mutexWantedQueue.get()
+                # Allow the requester to enter its critical section.
+                self.globalState.sendMessage({
+                    'type'   : MUTEX_MESSAGE_TYPE,
+                    'action' : self.RELEASED,
+                    'target' : playerUUID
+                })
 
-    # @KRISTOF: important note: you also receive your own messages: you should
-    # ignore these!
+
+    # TODO: this doesn't work yet when players leave the game while a process
+    # is acquiring the mutex...
     def processMutexMessage(self, playerUUID, message):
-        if playerUUID != self.playerUUID:
-            # Mutex logic ...
-            pass
+        # Ignore our own messages.
+        if playerUUID == self.playerUUID:
+            return
+
+        with self.lock:
+            # Mutex acquisition request.
+            if message['action'] == self.WANTED:
+                # If we're acquiring the mutex or have it, queue this mutex
+                # acquisition request. Note that we don't have to compare
+                # our vector clock with the requester's vector clock because
+                # messages are sent on top of GlobalState, which already
+                # ensures correct order.
+                if self.mutex == WANTED or self.mutex == self.HELD:
+                    self.mutexWantedQueue.put(playerUUID)
+                else:
+                    # Allow the requester to enter its critical section.
+                    self.globalState.sendMessage({
+                        'type'   : MUTEX_MESSAGE_TYPE,
+                        'action' : self.RELEASED,
+                        'target' : playerUUID
+                    })
+            # Mutex acquisition confirmation.
+            elif message['action'] == self.RELEASED and message['target'] == self.player.UUID:
+                self.agreementReceivedFromPlayers[playerUUID] = True
+                # Do we now have permission from all processes to enter the
+                # critical section? If yes, call mutexAcquiredCallback.
+                if all(self.agreementReceivedFromPlayers):
+                    self.mutexAcquiredCallback()
+
+
+    def mutexAcquiredCallback(self):
+        # Subclass should implement this.
+        raise NotImplemented
 
 
     #
