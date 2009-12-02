@@ -186,7 +186,7 @@ class ManyInARowGame(Game):
             else:
                 player = self.player
             # Notify the GUI.
-            self.guiPlayerJoinedCallback(playerUUID, player, player.name)
+            self.guiPlayerJoinedCallback(playerUUID, player)
         elif type == self.LEAVE:
             if playerUUID != self.player.UUID:
                 del self.otherPlayers[playerUUID]
