@@ -108,12 +108,12 @@ class GameWidget(QtGui.QWidget):
                 self.scene.unblock()
     
     
-    def playerJoinedCallBack(self, playerUUID, newPlayer, newPlayerName):
+    def playerJoinedCallBack(self, playerUUID, newPlayer):
         print "playerJoinedCallBack"
         #playerUUID = new player's UUID
         #newplayer = new players object
         with self.lock:
-            newItem = QtGui.QListWidgetItem(newPlayerName, self.ui.playerList)
+            newItem = QtGui.QListWidgetItem(newPlayer.name, self.ui.playerList)
             newItem.setBackgroundColor(QtGui.QColor(newPlayer.color[0], newPlayer.color[1], newPlayer.color[2]))
             self.ui.playerList.addItem(newItem)
             
@@ -134,6 +134,7 @@ class GameWidget(QtGui.QWidget):
         print "chatCallBack"
         with self.lock:
             color = QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2])
+            playerName = self.players[playerUUID].name
             newItem = QtGui.QListWidgetItem(playerName + ": " + message, self.ui.messageList)
             newItem.setBackgroundColor(color)
             self.ui.messageList.addItem(newItem)

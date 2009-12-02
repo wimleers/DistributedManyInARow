@@ -47,6 +47,7 @@ class Game(threading.Thread):
         # Initialize the mutex state.
         self.mutex = self.RELEASED
         self.mutexWantedQueue = Queue.Queue()
+        self.agreementReceivedFromPlayers = {}
 
         # Thread state variables.
         self.alive = True
@@ -94,9 +95,9 @@ class Game(threading.Thread):
     def acquireMutex(self):
         with self.lock:
             self.mutex = self.WANTED
-            self.agreementWantedFromPlayers   = [playerUUID for playerUUID in self.otherPlayers.keys()]
-            self.agreementReceivedFromPlayers = [False for playerUUID in agreementWantedFromPlayers]
-            self.globalState.sendMessage({'type' : MUTEX_MESSAGE_TYPE, 'action' : self.WANTED})
+            for playerUUID in self.otherPlayers.keys():
+                self.agreementReceivedFromPlayers[playerUUID] = False
+            self.globalState.sendMessage({'type' : self.MUTEX_MESSAGE_TYPE, 'action' : self.WANTED})
 
 
     def releaseMutex(self):
@@ -106,7 +107,7 @@ class Game(threading.Thread):
                 playerUUID = self.mutexWantedQueue.get()
                 # Allow the requester to enter its critical section.
                 self.globalState.sendMessage({
-                    'type'   : MUTEX_MESSAGE_TYPE,
+                    'type'   : self.MUTEX_MESSAGE_TYPE,
                     'action' : self.RELEASED,
                     'target' : playerUUID
                 })
@@ -116,7 +117,7 @@ class Game(threading.Thread):
     # is acquiring the mutex...
     def processMutexMessage(self, playerUUID, message):
         # Ignore our own messages.
-        if playerUUID == self.playerUUID:
+        if playerUUID == self.player.UUID:
             return
 
         with self.lock:
@@ -127,12 +128,12 @@ class Game(threading.Thread):
                 # our vector clock with the requester's vector clock because
                 # messages are sent on top of GlobalState, which already
                 # ensures correct order.
-                if self.mutex == WANTED or self.mutex == self.HELD:
+                if self.mutex == self.WANTED or self.mutex == self.HELD:
                     self.mutexWantedQueue.put(playerUUID)
                 else:
                     # Allow the requester to enter its critical section.
                     self.globalState.sendMessage({
-                        'type'   : MUTEX_MESSAGE_TYPE,
+                        'type'   : self.MUTEX_MESSAGE_TYPE,
                         'action' : self.RELEASED,
                         'target' : playerUUID
                     })

@@ -91,9 +91,9 @@ class MainWindow(QtGui.QMainWindow):
         
     def serviceRegisteredCallback(self, name, regtype, port):
         print "serviceRegisteredCallback"
-        with self.lock:
+        """with self.lock:
             self.succesBox.exec_()
-        
+        """
     def serviceRegistrationFailedCallback(self, name, errorCode, errorMessage):
         print "serviceRegistrationFailedCallback"
         with self.lock:
@@ -168,16 +168,16 @@ class NewGameDialog(QtGui.QDialog):
         label4 = QtGui.QLabel("# Rows: ", self)
         label5 = QtGui.QLabel("# Cols: ", self)
         label6 = QtGui.QLabel("Time between moves (secs)", self)
-        self.gameEdit = QtGui.QLineEdit(self)
-        self.commentEdit = QtGui.QLineEdit(self)
+        self.gameEdit = QtGui.QLineEdit("testgame",self)
+        self.commentEdit = QtGui.QLineEdit("testcomment", self)
         self.numRowEdit = QtGui.QSpinBox(self)
         self.numRowEdit.setMinimum(1)
         self.numRowEdit.setMaximum(30)
-        self.numRowEdit.setValue(1)
+        self.numRowEdit.setValue(5)
         self.numColEdit = QtGui.QSpinBox(self)
         self.numColEdit.setMinimum(1)
         self.numColEdit.setMaximum(30)
-        self.numColEdit.setValue(1)
+        self.numColEdit.setValue(5)
         self.waitTimeEdit = QtGui.QSpinBox(self)
         self.waitTimeEdit.setMinimum(1)
         self.waitTimeEdit.setMaximum(100)

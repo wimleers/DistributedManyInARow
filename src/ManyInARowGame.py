@@ -1,6 +1,7 @@
 import time
 from DistributedGame.Game import Game
 from vieropeenrij import *
+from threading import Timer
 
 
 class ManyInARowGameError(Exception): pass
@@ -113,7 +114,7 @@ class ManyInARowGame(Game):
 
     def makeMove(self, col):
         self.moveMessage = {'type' : self.MOVE, 'col' : col}
-        self.acquireMutex(self.mutexAcquiredCallback)
+        self.acquireMutex()
         timer = Timer(self.waitTime, self._guiCanMakeMove)
         timer.start()
 
