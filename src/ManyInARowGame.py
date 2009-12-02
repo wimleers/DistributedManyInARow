@@ -143,6 +143,12 @@ class ManyInARowGame(Game):
 
 
     def messageReceivedCallback(self, playerUUID, type, message):
+        """This method is called for every message that is received, except
+        for mutex messages. Note that all sent messages are also received,
+        they can be recognized by the fact that playerUUID == self.player.UUID
+        for those messages.
+        """
+
         if type == self.MOVE:
             row = self._makeMove(playerUUID, message['col'])
             self.guiMoveCallback(playerUUID, message['col'], row)
@@ -163,21 +169,23 @@ class ManyInARowGame(Game):
         elif type == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
         elif type == self.JOIN:
-            player = message['player']
-            self.players[playerUUID] = player
-            # Send a WELCOME message as a reply, to let the player who joined
-            # get to know all players
-            self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})
+            if playerUUID != self.player.UUID:
+                player = message['player']
+                self.players[playerUUID] = player
+                # Send a WELCOME message as a reply, to let the player who joined
+                # get to know all players
+                self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})
             # Notify the GUI.
-            self.guiPlayerJoinedCallback(playerUUID, player, player.name)
+            self.guiPlayerJoinedCallback(playerUUID, self.players[playerUUID], self.players[playerUUID].name)
         elif type == self.WELCOME:
             player = message['I am']
             self.players[playerUUID] = player
             # Notify the GUI.
             self.guiPlayerJoinedCallback(playerUUID, player, player.name)
         elif type == self.LEAVE:
-            del self.players[playerUUID]
-            self.guiPlayerLeftCallback(playerUUID)
+            if playerUUID != self.player.UUID:
+                del self.players[playerUUID]
+                self.guiPlayerLeftCallback(playerUUID)
 
 
     def _isWinnerForXInARow(self, col, row, goal):
@@ -201,9 +209,9 @@ class ManyInARowGame(Game):
             with self.lock:
                 if self.countReceivedMessages() > 0:
                     (senderUUID, message) = self.receiveMessage()
-                    print 'MSG', senderUUID, message
+                    # print 'MSG', senderUUID, message
                     if message['type'] == self.MUTEX_MESSAGE_TYPE:
-                        self.processMutexMessage(message)
+                        self.processMutexMessage(senderUUID, message)
                     else:
                         self.messageReceivedCallback(senderUUID, message['type'], message)            
 
@@ -217,6 +225,7 @@ class ManyInARowGame(Game):
 
 
     def kill(self):
+        del self.players[self.player.UUID]
         # Let the other players in this game now we're leaving the game.
         self.sendMessage({'type' : self.LEAVE})
         # Ensure the Service is aware of this as well, so the service

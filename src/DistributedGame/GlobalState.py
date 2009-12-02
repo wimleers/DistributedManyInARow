@@ -172,6 +172,7 @@ class GlobalState(threading.Thread):
         """Enqueue a message to be sent."""
         with self.lock:
             # print "\tGlobalState.sendMessage()", message
+            self.inbox.put((self.senderUUID, message))
             self.outbox.put(message)
 
 

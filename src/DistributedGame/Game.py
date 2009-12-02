@@ -32,6 +32,7 @@ class Game(threading.Thread):
             raise PlayerError
         self.player = player
         self.players = {}
+        self.players[self.player.UUID] = player
 
         # Generate the UUID for this Game when necessary.
         if UUID == None:
@@ -96,8 +97,12 @@ class Game(threading.Thread):
     def releaseMutex(self):
         pass
 
-    def processMutexMessage(self, message):
-        pass
+    # @KRISTOF: important note: you also receive your own messages: you should
+    # ignore these!
+    def processMutexMessage(self, playerUUID, message):
+        if playerUUID != self.playerUUID:
+            # Mutex logic ...
+            pass
 
 
     #
