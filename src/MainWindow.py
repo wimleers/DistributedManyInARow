@@ -5,16 +5,22 @@ from PlayerAddWidget import PlayerAddWidget
 from NetworkLobbyWidget import NetworkLobbyWidget
 from ManyInARowService import ManyInARowService
 from DistributedGame.Player import Player
+import threading
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, win_parent = None):
         QtGui.QMainWindow.__init__(self, win_parent)
         
+        self.games = []
+        
+        #ensure threading safety:
+        self.lock = threading.Condition()
+        
         #GUI
         self.createLayout()
         self.createMenu()
         self.showMaximized()
-        self.succesBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Success", "Serive started successfully", QtGui.QMessageBox.Ok, self)
+        self.succesBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Success", "Service started successfully", QtGui.QMessageBox.Ok, self)
         self.errorBox = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error", "Service registration failed, please restart.", QtGui.QMessageBox.Ok, self)
         
         playerAddWidget = PlayerAddWidget(self)
@@ -31,8 +37,12 @@ class MainWindow(QtGui.QMainWindow):
         self.manyInARowService.start()
         
     def closeEvent(self, event):
-        self.manyInARowService.kill()
-        event.accept()
+        with self.lock:
+            self.manyInARowService.kill()
+            for i in range(len(self.games)):
+                self.games[i].close()
+                
+            event.accept()
         
     def createLayout(self):
         #Left side of screen: List of availabe games
@@ -68,49 +78,69 @@ class MainWindow(QtGui.QMainWindow):
         newGameDialog = NewGameDialog(self)
         (gameName, gameComment, numRows, numCols, waitTime) = newGameDialog.getGameInfo()
         if(gameName != None):
-            self.tabWidget.addTab(GameWidget(GameWidget.CREATE_NEW_GAME, {'rows' : numRows, 'cols' : numCols, 'name' : gameName, 'comment' : gameComment, 'waitTime' : waitTime}, self.localPlayer, self.manyInARowService, self.tabWidget), gameName)
+            self.games.append(GameWidget(GameWidget.CREATE_NEW_GAME, {'rows' : numRows, 'cols' : numCols, 'name' : gameName, 'comment' : gameComment, 'waitTime' : waitTime}, self.localPlayer, self.manyInARowService, self.tabWidget))
+            self.tabWidget.addTab(self.games[len(self.games) - 1], gameName)
     
     def joinGame(self, UUID, name):
         # Is called when the user chooses to join a network game. This functions makes sure a new tab is created and the game joining is intiated. 
         # Create the new tab
-        self.tabWidget.addTab(GameWidget(GameWidget.JOIN_GAME, UUID, self.localPlayer, self.manyInARowService, self.tabWidget), name)
+        with self.lock:
+            info = self.networkLobby.getGameInfo(UUID)
+            self.games.append(GameWidget(GameWidget.JOIN_GAME, info , self.localPlayer, self.manyInARowService, self.tabWidget))
+            self.tabWidget.addTab(self.games[len(self.games) - 1], name)
         
     def serviceRegisteredCallback(self, name, regtype, port):
-        self.succesBox.exec_()
+        print "serviceRegisteredCallback"
+        with self.lock:
+            self.succesBox.exec_()
         
     def serviceRegistrationFailedCallback(self, name, errorCode, errorMessage):
-        self.errorBox.setText(str(errorCode) + ": " + str(errorMessage))
-        self.errorBox.exec_()
-        self.close()
+        print "serviceRegistrationFailedCallback"
+        with self.lock:
+            self.errorBox.setText(str(errorCode) + ": " + str(errorMessage))
+            self.errorBox.exec_()
+            self.close()
     
     def serviceUnregisteredCallback(self, serviceName, serviceType, port):
+        print "serviceUnregisteredCallback" 
         pass
     
     def peerServiceDiscoveredCallback(self, serviceName, interfaceIndex, ip, port):
-        self.networkLobby.addPeer(serviceName, interfaceIndex, ip, port)
+        print "peerServiceDiscoveredCallback" 
+        with self.lock:
+            self.networkLobby.addPeer(serviceName, interfaceIndex, ip, port)
     
     def peerServiceRemovedCallback(self, serviceName, interfaceIndex):
-        self.networkLobby.removePeer(serviceName, interfaceIndex)
+        print "peerServiceRemovedCallback" 
+        with self.lock:
+            self.networkLobby.removePeer(serviceName, interfaceIndex)
         
     def playerAddedCallback(self, player):
-        self.networkLobby.addPlayer(player)
+        print "playerAddedCallback" 
+        with self.lock:
+            self.networkLobby.addPlayer(player)
     
     def playerUpdatedCallback(self, player):
         pass
     
     def playerLeftCallback(self, player):
-        print "Player left: " + str(player)
-        self.networkLobby.removePlayer(player)
+        print "playerLeftCallback" 
+        with self.lock:
+            print "Player left: " + str(player)
+            self.networkLobby.removePlayer(player)
     
     def gameAddedCallback(self, gameUUID, newGame):
-        self.networkLobby.addGame(newGame, gameUUID)
+        with self.lock:
+            self.networkLobby.addGame(newGame, gameUUID)
     
     def gameUpdatedCallback(self, updatedGame):
         pass
     
     def gameEmptyCallback(self, emptyGameUUID, UUID):
+        print "gameEmptyCallback" 
         #remove the game tab for this game
-        self.networkLobby.removeGame(emptyGameUUID)
+        with self.lock:
+            self.networkLobby.removeGame(emptyGameUUID)
     
 
 class NewGameDialog(QtGui.QDialog):
