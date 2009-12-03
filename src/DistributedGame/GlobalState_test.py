@@ -72,7 +72,8 @@ class GlobalStateTest(unittest.TestCase):
         time.sleep(1)
 
         # Validate.
-        self.assertEquals(self.gs_a.countReceivedMessages(), 0)
+        self.assertEquals(self.gs_a.countReceivedMessages(), 1)
+        self.assertEquals(self.gs_a.receiveMessage(), (self.player_a.UUID, messageOne))
         self.assertEquals(self.gs_b.countReceivedMessages(), 1)
         self.assertEquals(self.gs_b.receiveMessage(), (self.player_a.UUID, messageOne))
 
@@ -87,6 +88,9 @@ class GlobalStateTest(unittest.TestCase):
         self.clock_a.increment(self.player_a.UUID)
         self.clock_b.increment(self.player_a.UUID)
 
+        # Alow messages to be processed.
+        time.sleep(0.5)
+
         # Player B sends message.
         messageTwo = {'type' : 'welcome'}
         self.gs_b.sendMessage(messageTwo)
@@ -94,13 +98,15 @@ class GlobalStateTest(unittest.TestCase):
         self.clock_b.increment(self.player_b.UUID)
 
         # Alow messages to be processed.
-        time.sleep(1)
+        time.sleep(0.5)
 
         # Validate.
-        self.assertEquals(self.gs_a.countReceivedMessages(), 1)
+        self.assertEquals(self.gs_a.countReceivedMessages(), 2)
+        self.assertEquals(self.gs_a.receiveMessage(), (self.player_a.UUID, messageOne))
         self.assertEquals(self.gs_a.receiveMessage(), (self.player_b.UUID, messageTwo))
-        self.assertEquals(self.gs_b.countReceivedMessages(), 1)
+        self.assertEquals(self.gs_b.countReceivedMessages(), 2)
         self.assertEquals(self.gs_b.receiveMessage(), (self.player_a.UUID, messageOne))
+        self.assertEquals(self.gs_b.receiveMessage(), (self.player_b.UUID, messageTwo))
 
         # Ensure both Global States are in sync.
         self.assertInSync(self.clock_a, self.clock_b)
