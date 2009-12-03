@@ -80,6 +80,9 @@ class ManyInARowGame(Game):
                               game.waitTime, game.startTime)
         game.playing = True
 
+        # Notify the GUI.
+        self.guiPlayerJoinedCallback(player.UUID, player)
+
         # Let the GUI know that moves may now be made.
         game._guiCanMakeMove()
 
