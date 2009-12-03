@@ -104,6 +104,10 @@ if not options.listenOnly:
     print "[CLI] Sending chat message."
     game.sendChatMessage("Guten tag, anybody around?")
     time.sleep(0.5)
+
+    print "[CLI] Making a move."
+    game.makeMove(2)
+    time.sleep(0.5)
 else:
     time.sleep(2)
 

@@ -172,7 +172,7 @@ class GlobalState(threading.Thread):
         """Enqueue a message to be sent."""
         with self.lock:
             # print "\tGlobalState.sendMessage()", message
-            self.inbox.put((self.senderUUID, message))
+            self.inbox.put((self.senderUUID, message, None))
             self.outbox.put(message)
 
 
@@ -224,8 +224,8 @@ class GlobalState(threading.Thread):
         """Store a message in the global state and put it in the inbox."""
 
         # Merge the clocks and increment our own component.
+        messageClock = copy.deepcopy(envelope['clock'])
         self.clock.merge(envelope['clock'])
-        envelope['clock'] = self.clock
 
         # Store the message.
         self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, message) VALUES(?, ?, ?, ?, ?)", (time.time(), envelope['senderUUID'], envelope['originUUID'], self.clock.dumps(), cPickle.dumps(envelope)))
@@ -233,7 +233,7 @@ class GlobalState(threading.Thread):
 
         # Move the message to the inbox queue, so it can be retrieved.
         with self.lock:
-            self.inbox.put((envelope['originUUID'], envelope['message']))
+            self.inbox.put((envelope['originUUID'], envelope['message'], messageClock))
 
 
     def erase(self):

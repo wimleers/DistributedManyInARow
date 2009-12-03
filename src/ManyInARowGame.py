@@ -68,6 +68,9 @@ class ManyInARowGame(Game):
         self.finished                      = False
         self.canMakeMoveAfterMutexAcquired = False
 
+        # Notify the GUI.
+        self.guiPlayerJoinedCallback(player.UUID, player)
+
 
     @classmethod
     def hostGame(cls, service, player, *gameSettingsAndCallbacks):
@@ -79,9 +82,6 @@ class ManyInARowGame(Game):
                               game.numRows, game.numCols,
                               game.waitTime, game.startTime)
         game.playing = True
-
-        # Notify the GUI.
-        self.guiPlayerJoinedCallback(player.UUID, player)
 
         # Let the GUI know that moves may now be made.
         game._guiCanMakeMove()
@@ -217,10 +217,9 @@ class ManyInARowGame(Game):
             # Receive messages and call the appropriate callback.
             with self.lock:
                 if self.countReceivedMessages() > 0:
-                    (senderUUID, message) = self.receiveMessage()
-                    # print 'MSG', senderUUID, message
+                    (senderUUID, message, messageClock) = self.receiveMessage()
                     if message['type'] == self.MUTEX_MESSAGE_TYPE:
-                        self.processMutexMessage(senderUUID, message)
+                        self.processMutexMessage(senderUUID, message, messageClock)
                     else:
                         self.messageReceivedCallback(senderUUID, message['type'], message)            
 

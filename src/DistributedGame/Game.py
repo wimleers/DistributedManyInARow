@@ -94,6 +94,7 @@ class Game(threading.Thread):
 
     def acquireMutex(self):
         with self.lock:
+            self.mutexRequestedClock = self.globalState.frontier()
             self.mutex = self.WANTED
             for playerUUID in self.otherPlayers.keys():
                 self.agreementReceivedFromPlayers[playerUUID] = False
@@ -115,7 +116,7 @@ class Game(threading.Thread):
 
     # TODO: this doesn't work yet when players leave the game while a process
     # is acquiring the mutex...
-    def processMutexMessage(self, playerUUID, message):
+    def processMutexMessage(self, playerUUID, message, messageClock):
         # Ignore our own messages.
         if playerUUID == self.player.UUID:
             return
@@ -128,7 +129,7 @@ class Game(threading.Thread):
                 # our vector clock with the requester's vector clock because
                 # messages are sent on top of GlobalState, which already
                 # ensures correct order.
-                if self.mutex == self.WANTED or self.mutex == self.HELD:
+                if self.mutex == self.HELD or (self.mutex == self.WANTED and self.mutexRequestedClock < messageClock and uuid.UUID(self.UUID).int < uuid.UUID(playerUUID).int):
                     self.mutexWantedQueue.put(playerUUID)
                 else:
                     # Allow the requester to enter its critical section.
@@ -143,6 +144,7 @@ class Game(threading.Thread):
                 # Do we now have permission from all processes to enter the
                 # critical section? If yes, call mutexAcquiredCallback.
                 if all(self.agreementReceivedFromPlayers):
+                    self.mutex = self.HELD
                     self.mutexAcquiredCallback()
 
 
