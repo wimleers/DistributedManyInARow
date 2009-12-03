@@ -7,6 +7,7 @@ from DistributedGame.Player import Player
 import vieropeenrij
 import threading
 
+
 class GameWidget(QtGui.QWidget):
 #GameWidget provides a window in which a game can be played. It displays the gameboard(GraphicsScene),
 #active players, log messages and chat messages
@@ -84,6 +85,7 @@ class GameWidget(QtGui.QWidget):
     
     # Callbacks:
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
+        self.logList.addMessage(self.player, "successfully joined")
         print "gameJoinedCallBack"
         # We know the number of rows and colums, build the GUI board.
         with self.lock:
@@ -149,7 +151,7 @@ class GameWidget(QtGui.QWidget):
         print "playerWonCallBack"
         with self.lock:
             winnerUUID = winners[currentGoal]
-            name = self.players[winnerUUID]
+            name = self.players[winnerUUID].name
             QtGui.QMessageBox.information(self, "Round finished. ", name + " has won this round")
         
     def gameFinishedCallBack(self, winners):
@@ -158,9 +160,9 @@ class GameWidget(QtGui.QWidget):
         winnerStr = ""
         with self.lock:
             for winnerUUID in winners:
-                winnerStr = winnerStr + str(i) + " in a row: " + self.players[winnerUUID] + "\n"
+                winnerStr = winnerStr + str(i) + " in a row: " + self.players[winnerUUID].name + "\n"
                 
-            QtGui.QMessageBox.information(self, "Game finished", "The game has finished, the winners are: " + winnerStr)
+            QtGui.QMessageBox.information(self, "Game finished", "The game has finished, the winners are: \n" + winnerStr)
     
     def makeHoverMove(self, column):
         with self.lock:

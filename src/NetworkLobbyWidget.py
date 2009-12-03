@@ -71,6 +71,13 @@ class NetworkLobbyWidget(QtGui.QWidget):
     def addPlayer(self, player):
         newItem = NetworkLobbyPlayerItem(player.name, player, self.playerList)
         self.playerList.addItem(newItem)
+        
+    def updatePlayer(self, player):
+        for i in range(self.playerList.count()):
+            currentItem = self.playerList.item(i)
+            if(currentItem.player.UUID == player.UUID):
+                currentItem.setPlayer(player)
+                break
     
     def removePlayer(self, player):
         for i in range(self.playerList.count()):
@@ -124,4 +131,6 @@ class NetworkLobbyPlayerItem(QtGui.QListWidgetItem):
         QtGui.QListWidgetItem.__init__(self, text, view)
         
         self.player = player
+    def setPlayer(self, player):
+        self.setText(player.name)
         self.setToolTip(str("UUID: " + player.UUID + "\ncolor: " + str(player.color)))

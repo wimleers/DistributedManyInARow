@@ -121,7 +121,9 @@ class MainWindow(QtGui.QMainWindow):
             self.networkLobby.addPlayer(player)
     
     def playerUpdatedCallback(self, player):
-        pass
+        print "playerUpdatedCallback"
+        with self.lock:
+            self.networkLobby.updatePlayer(player)
     
     def playerLeftCallback(self, player):
         print "playerLeftCallback" 
