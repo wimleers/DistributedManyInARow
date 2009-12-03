@@ -3,8 +3,7 @@ queued unordered, reliable messaging simpler than you can imagine. Peer
 discovery happens automatically. Naming conflicts are solved automatically.
 Forget IGMP and special hardware requirements.
 Uses zeroconf networking.
-Message size is limited to 255 bytes. Therefore more of an experiment than
-actually usable.
+Message size is limited to 255 bytes.
 """
 
 
