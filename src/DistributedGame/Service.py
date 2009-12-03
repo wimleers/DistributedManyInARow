@@ -27,15 +27,18 @@ class Service(threading.Thread):
                                           serviceRegisteredCallback=self._serviceRegisteredCallback,
                                           serviceRegistrationFailedCallback=self._serviceRegistrationFailedCallback,
                                           serviceUnregisteredCallback=self._serviceUnregisteredCallback,
-                                          peerServiceDiscoveryCallback=self._peerServiceDiscoveryCallback,
-                                          peerServiceRemovalCallback=self._peerServiceRemovalCallback,
+                                          peerServiceDiscoveryCallback=self._peerServiceDiscoveryCallbackRouter,
+                                          peerServiceRemovalCallback=self._peerServiceRemovalCallbackRouter,
                                           peerServiceUpdateCallback=self._peerServiceUpdateCallback,
-                                          peerServiceDescriptionUpdatedCallback=self._peerServiceDescriptionUpdatedCallback)
+                                          peerServiceDescriptionUpdatedCallback=self._peerServiceDescriptionUpdatedCallbackRouter)
         self.zeroconf.start()
 
         # Message storage.
         self.inbox  = Queue.Queue()
         self.outbox = Queue.Queue()
+
+        # IP storage (for managing multicast subscriptions).
+        self.ips = {}
 
         # Service description storage.
         self.ownServiceDescription = {} # No need for a queue, keeping only the latest is sufficient, since it doens't convey history but the current status.
@@ -45,6 +48,42 @@ class Service(threading.Thread):
         self.alive = True
         self.die   = False
         self.lock = threading.Condition()
+
+
+    def _peerServiceDiscoveryCallbackRouter(self, serviceName, interfaceIndex, fullname, hosttarget, ip, port):
+        # Subscribe to this peer's multicast traffic.
+        if not self.ips.has_key(serviceName):
+            self.ips[serviceName] = {}
+            if not self.ips[serviceName].has_key(interfaceIndex):
+                self.ips[serviceName][interfaceIndex] = {}
+                self.multicast.subscribe(ip)
+
+        # Call peerServiceDiscoveryCallback.
+        self._peerServiceDiscoveryCallback(serviceName, interfaceIndex, fullname, hosttarget, ip, port)
+
+
+    def _peerServiceDescriptionUpdatedCallbackRouter(self, serviceName, interfaceIndex, txtRecords, updated, deleted):
+        # This callback may be called before the peer discovery callback,
+        # because the TXT record (which is necessary for this callback) might
+        # be retrieved for the IP (which is necessary for the peer discovery
+        # callback). And the IP address is required to be able to subscribe
+        # to that host's multicast messages.
+
+        # Subscribe to this peer's multicast traffic.
+        while not self.ips.has_key(serviceName) and not self.ips[serviceName].has_key(interfaceIndex):
+            time.sleep(0.01)
+
+        # Call peerServiceDescriptionUpdatedCallback.
+        self._peerServiceDescriptionUpdatedCallback(serviceName, interfaceIndex, txtRecords, updated, deleted)
+
+
+    def _peerServiceRemovalCallbackRouter(self, serviceName, interfaceIndex):
+        # Unsubscribe to this peer's multicast traffic.
+        self.multicast.unsubscribe(self.ips[serviceName][interfaceName])
+        del self.ips[serviceName][interfaceName]
+
+        # Call peerServiceRemovalCallback.
+        self.peerServiceRemovalCallback(serviceName, interfaceIndex)
 
 
     def _serviceRegisteredCallback(self, sdRef, flags, errorCode, name, regtype, domain, port):
