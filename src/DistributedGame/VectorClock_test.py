@@ -141,6 +141,8 @@ class TestVectorClock(unittest.TestCase):
 
         # v2 immediately follows v1.
         v2.increment('bar')
+        self.assertTrue(v1 <= v2)
+        self.assertFalse(v1 < v2)
         self.assertTrue(v1.isImmediatelyFollowedBy(v2))
         self.assertFalse(v2.isImmediatelyFollowedBy(v1))
 
@@ -165,30 +167,42 @@ class TestVectorClock(unittest.TestCase):
         # Immediate concurrency.
         v1.increment('foo')
         v2.increment('bar')
+        self.assertTrue(v1.isConcurrentWith(v2))
+        self.assertTrue(v2.isConcurrentWith(v1))
         self.assertTrue(v1.isImmediatelyConcurrentWith(v2))
         self.assertTrue(v2.isImmediatelyConcurrentWith(v1))
 
         # Still concurrent, but no longer immediate: the difference for 'foo'
         # is now 2.
         v1.increment('foo')
+        self.assertTrue(v1.isConcurrentWith(v2))
+        self.assertTrue(v2.isConcurrentWith(v1))
         self.assertFalse(v1.isImmediatelyConcurrentWith(v2))
         self.assertFalse(v2.isImmediatelyConcurrentWith(v1))
 
         # Still concurrent, but no longer immediate: the difference is now 1
         # for both 'foo' and 'baz'.
         v2.increment('foo') # Make the concurrency valid again.
+        self.assertTrue(v1.isConcurrentWith(v2))
+        self.assertTrue(v2.isConcurrentWith(v1))
         self.assertTrue(v1.isImmediatelyConcurrentWith(v2))
         self.assertTrue(v2.isImmediatelyConcurrentWith(v1))
         v2.increment('baz') # >1 
+        self.assertTrue(v1.isConcurrentWith(v2))
+        self.assertTrue(v2.isConcurrentWith(v1))
         self.assertFalse(v1.isImmediatelyConcurrentWith(v2))
         self.assertFalse(v2.isImmediatelyConcurrentWith(v1))
 
         # Immediate concurrency, although one of the vector clock now contains
         # a new key.
         v1.increment('baz') # Make the concurrency valid again.
+        self.assertTrue(v1.isConcurrentWith(v2))
+        self.assertTrue(v2.isConcurrentWith(v1))
         self.assertTrue(v1.isImmediatelyConcurrentWith(v2))
         self.assertTrue(v2.isImmediatelyConcurrentWith(v1))
         v2.add('pow')
+        self.assertTrue(v1.isConcurrentWith(v2))
+        self.assertTrue(v2.isConcurrentWith(v1))
         self.assertTrue(v1.isImmediatelyConcurrentWith(v2))
         self.assertTrue(v2.isImmediatelyConcurrentWith(v1))
 
