@@ -17,7 +17,7 @@ class Service(threading.Thread):
     def __init__(self, serviceName, serviceType, port, protocolVersion=1):
         super(Service, self).__init__(name='Service-Thread')
 
-        # Initialize IP Multicast layer.
+        # Initialize IP multicast layer.
         self.multicast = IPMulticastMessaging(port)
         uniquePort = self.multicast.getSendPort()
         self.multicast.start()
@@ -122,7 +122,7 @@ class Service(threading.Thread):
         with self.lock:
             self.die = True
 
- 
+
     def _commitSuicide(self):
         """Commit suicide when asked to. The lock must be acquired before
         calling this method.
@@ -210,7 +210,6 @@ class OneToManyService(Service):
             with self.multicast.lock:
                 while self.multicast.inbox.qsize() > 0:
                     packet = self.multicast.inbox.get()
-                    # print '\tService._multicastRouteIncomingMessages():', packet
                     for destinationUUID in packet.keys():
                         if self.inbox.has_key(destinationUUID):
                             # Copy the message from the packet to the
