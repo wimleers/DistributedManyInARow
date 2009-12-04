@@ -15,10 +15,6 @@ import threading
 import time
 import uuid
 
-import netstring
-
-
-# TODO: investigate if netstrings are still necessary, I'm pretty sure they aren't.
 
 # Define exceptions.
 class IPMulticastMessagingError(Exception): pass
@@ -147,12 +143,10 @@ class IPMulticastMessaging(threading.Thread):
         """Helper method for _send()."""
 
         # First pickle the value so we get a string (the message may contain
-        # *any* possible Python value). Then encode it as a netstring so we
-        # can reassemble the data after it's been fragmented to fit in the
-        # configured packet size.
+        # *any* possible Python value).
         # (UDP doesn't do fragmentation and requires a fixed packet size and
         # thus we must handle fragmentation ourselves.)
-        data = netstring.encode(cPickle.dumps(message))
+        data = cPickle.dumps(message)
 
         # Fragment the data into multiple packets when there's too much data
         # to fit in a single packet.
@@ -221,7 +215,7 @@ class IPMulticastMessaging(threading.Thread):
         # NOTE: this requires discovery of other hosts through another means
         # than IP multicast itself, e.g. zeroconf.
         if addr[0] not in self.memberships:
-            return
+            pass
         # print 'RECEIVED MESSAGE FROM:', addr, addr[0] in self.memberships
 
         # Extract the fragment ID from the data.
@@ -249,19 +243,11 @@ class IPMulticastMessaging(threading.Thread):
 
         # Decode the message in the packet.
         if packet != "":
-            # Attempt to decode netstrings from the buffer.
-            try:
-                netstrings, remaining = netstring.decode(packet)
-                if len(remaining) > 0:
-                    raise Exception, "No data should be remaining."
-                for string in netstrings:
-                    with self.lock:
-                        # WARNING: insecure! Global variables might be
-                        # unpickled!
-                        message = cPickle.loads(string)
-                        yield message
-            except netstring.DecoderError:
-                pass
+            with self.lock:
+                # WARNING: insecure! Global variables might be
+                # unpickled!
+                message = cPickle.loads(packet)
+                yield message
 
 
     def _commitSuicide(self):
