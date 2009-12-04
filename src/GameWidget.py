@@ -154,7 +154,7 @@ class GameWidget(QtGui.QWidget):
         
     
     def moveCallBack(self, playerUUID, col, row):
-        self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + col + ", " + row + ")")
+        self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + str(col) + ", " + str(row) + ")")
         print "moveCallBack"
         with self.lock:
             self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
