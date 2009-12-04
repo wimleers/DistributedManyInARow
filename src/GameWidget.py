@@ -32,6 +32,9 @@ class GameWidget(QtGui.QWidget):
         self.players = {}
         
         self.manyInARow = None
+        self.layoutCreated = False
+        
+        self.winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "", "", QtGui.QMessageBox.Ok, self)
         
         #ensure threading safety:
         self.lock = threading.Condition()
@@ -43,7 +46,8 @@ class GameWidget(QtGui.QWidget):
                                                     self.playerJoinedCallBack, self.playerLeftCallBack,
                                                     self.moveCallBack, self.enableClicks,
                                                     self.playerWonCallBack, self.gameFinishedCallBack)
-            self.createLayout()
+            if(not self.layoutCreated):
+                self.createLayout()
             self.manyInARow.start()
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("playerClicked(int)"), self.makeMove)
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("mouseHoverColumn(int)"), self.makeHoverMove)
@@ -97,7 +101,8 @@ class GameWidget(QtGui.QWidget):
             self.waitTime = waitTime
             self.startTime = startTime
             
-            self.createLayout()
+            if(not self.layoutCreated):
+                self.createLayout()
             
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("playerClicked(int)"), self.makeMove)
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("mouseHoverColumn(int)"), self.makeHoverMove)
@@ -111,6 +116,10 @@ class GameWidget(QtGui.QWidget):
     
     
     def playerJoinedCallBack(self, playerUUID, newPlayer):
+        if(not self.layoutCreated):
+            self.createLayout()
+        
+        self.logList.addMessage(newPlayer, "successfully joined")
         print "playerJoinedCallBack"
         #playerUUID = new player's UUID
         #newplayer = new players object
@@ -122,6 +131,7 @@ class GameWidget(QtGui.QWidget):
             self.players[playerUUID] = newPlayer
     
     def playerLeftCallBack(self, playerUUID):
+        self.logList.addMessage(self.players[playerUUID], "has left")
         print "playerLeftCallBack"
         with self.lock:
             playername = self.players[playerUUID].name
@@ -133,6 +143,7 @@ class GameWidget(QtGui.QWidget):
 
 
     def chatCallBack(self, playerUUID, message):
+        self.logList.addMessage(self.players[playerUUID], "said: " + message)
         print "chatCallBack"
         with self.lock:
             color = QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2])
@@ -143,16 +154,20 @@ class GameWidget(QtGui.QWidget):
         
     
     def moveCallBack(self, playerUUID, col, row):
+        self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + col + ", " + row + ")")
         print "moveCallBack"
         with self.lock:
             self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
     
     def playerWonCallBack(self, winners, currentGoal):
+        self.logList.addMessage(self.players[winnerUUID], "has won round " + currentGoal)
         print "playerWonCallBack"
         with self.lock:
             winnerUUID = winners[currentGoal]
             name = self.players[winnerUUID].name
-            QtGui.QMessageBox.information(self, "Round finished. ", name + " has won this round")
+            self.winnerBox.setWindowTitle("Round finished")
+            self.winnerBox.setText(name + " has won this round")
+            self.winnerBox.exec_()
         
     def gameFinishedCallBack(self, winners):
         print "gameFinishedCallBack"
@@ -162,7 +177,9 @@ class GameWidget(QtGui.QWidget):
             for winnerUUID in winners:
                 winnerStr = winnerStr + str(i) + " in a row: " + self.players[winnerUUID].name + "\n"
                 
-            QtGui.QMessageBox.information(self, "Game finished", "The game has finished, the winners are: \n" + winnerStr)
+            self.winnerBox.setWindowTitle("Game finished")
+            self.winnerBox.setText("The game has finished, the winners are: \n" + winnerStr)
+            self.winnerBox.exec_()
     
     def makeHoverMove(self, column):
         with self.lock:
@@ -182,6 +199,7 @@ class GameWidget(QtGui.QWidget):
         self.ui.verticalLayout.addWidget(self.logList)
         self.ui.chatEdit.returnPressed.connect(self.sendMessage)
         self.ui.show()
+        self.layoutCreated = True
         
     def closeEvent(self, event):
         print "Killing game"

@@ -6,6 +6,8 @@ GUI:
 - game statistics: play time, welke players, kleur van players, ...
 - log in apart widget
 
+- esc disablen in startup scherm --> done
+
 
 Internals:
 ✓ Game: ondersteuning voor mutex

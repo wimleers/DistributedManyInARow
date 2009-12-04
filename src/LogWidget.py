@@ -8,19 +8,8 @@ class LogWidget(QtGui.QListWidget):
         self.setMaximumWidth(200)
         
     
-    def addMessage(self, color, message):
+    def addMessage(self, player, message):
         time = QtCore.QTime.currentTime().toString()
         newItem = QtGui.QListWidgetItem(time + ": " + message, self)
-        newItem.setBackgroundColor(color)
+        newItem.setBackgroundColor(QtGui.QColor(player.color[0], player.color[1], player.color[2]))
         self.addItem(newItem)
-        
-        
-if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
-    wid = LogWidget()
-    wid.addMessage(QtGui.QColor(255, 0, 0), "Player 1 at location( 1, 2 )")
-    wid.addMessage(QtGui.QColor(0, 255, 0), "Player 2 at location( 2, 1 )")
-    wid.addMessage(QtGui.QColor(0, 0, 255), "Player 3 at location( 3, 1 )")
-    
-    wid.show()
-    app.exec_()

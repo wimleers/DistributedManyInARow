@@ -25,7 +25,7 @@ class OneToManyServiceError(GlobalStateError): pass
 # TODO: add index on clock, if it makes a difference
 
 
-MessageRecord = namedtuple('Message', ['hid', 'timestamp', 'senderUUID', 'originUUID', 'ownClockValue', 'clock', 'message'])
+MessageRecord = namedtuple('Message', ['hid', 'tip', 'senderUUID', 'originUUID', 'ownClockValue', 'clock', 'message'])
 
 
 class GlobalState(threading.Thread):

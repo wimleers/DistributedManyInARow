@@ -28,17 +28,6 @@ class PlayerAddWidget(QtGui.QDialog):
         
         self.gridLayout.addWidget(saveButton, 3, 0)
         
-        
-    # Don't need this anymore:
-    """
-    def launchColorPicker(self):
-        self.color = QtGui.QColorDialog.getColor()
-        palette = QtGui.QPalette()
-        palette.setColor(0, 10, self.color)
-        self.colorLabel.setPalette(palette)
-        self.colorSet = True
-    """
-        
     def saveData(self):
         self.name = self.nameEdit.text()
         if(self.name.size() == 0):
@@ -55,12 +44,10 @@ class PlayerAddWidget(QtGui.QDialog):
         else:
             return None
         
-    
+    def reject(self):
+        self.close()
+        
     def closeEvent(self, event):
         QtGui.QMessageBox.warning(self, "Error", "You have to enter a name.")
         event.ignore()
         
-if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
-    wid = PlayerAddWidget()
-    wid.exec_()

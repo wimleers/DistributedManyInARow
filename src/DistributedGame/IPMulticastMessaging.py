@@ -209,7 +209,7 @@ class IPMulticastMessaging(threading.Thread):
     def _receiveMessage(self):
         try:
             data, addr = self.recvSocket.recvfrom(self.PACKET_SIZE)
-            # print 'RECEIVED MESSAGE FROM:', addr, addr[0] in self.memberships
+            print 'RECEIVED MESSAGE FROM:', addr, addr[0] in self.memberships
         except socket.error, e:
             print 'Expection'
 
@@ -218,7 +218,7 @@ class IPMulticastMessaging(threading.Thread):
         # than IP multicast itself, e.g. zeroconf.
         if addr[0] not in self.memberships:
             pass
-        # print 'RECEIVED MESSAGE FROM:', addr, addr[0] in self.memberships
+        print 'RECEIVED MESSAGE FROM:', addr, addr[0] in self.memberships
 
         # Extract the fragment ID from the data.
         fragmentID = data[:self.FRAGMENT_ID_SIZE]
