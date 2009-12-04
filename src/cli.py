@@ -113,6 +113,10 @@ else:
 
 time.sleep(5)
 
+if not hasattr(game, 'stats'):
+    print '[CLI] No game found: could not join any game.'
+    exit(1)
+
 print "[CLI] Game stats:"
 print game.stats()
 
