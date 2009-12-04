@@ -3,7 +3,8 @@ queued, unordered, unreliable messaging simpler than you can imagine.
 Loopback is enabled.
 (Fragmentation and reassembly happen automatically. Unreliable because no
 recovery/resending happens for lost packets.)
-Uses IP multicast networking."""
+Uses IP multicast networking.
+"""
 
 
 import select
@@ -30,7 +31,7 @@ class IPMulticastMessaging(threading.Thread):
     PACKET_SIZE = 150
     MAX_NUM_FRAGMENTS = 10000
 
-    FRAGMENT_ID_SIZE   = 36 + 5 + 5 # UUID (32 characters) + number (5 digits) + total number (5 digits)
+    FRAGMENT_ID_SIZE   = 36 + 5 + 5 # UUID (36 characters) + number (5 digits) + total number (5 digits)
     FRAGMENT_DATA_SIZE = PACKET_SIZE - FRAGMENT_ID_SIZE
 
     def __init__(self, port):
@@ -108,6 +109,7 @@ class IPMulticastMessaging(threading.Thread):
 
             # Processing the queues 50 times per second is sufficient.
             time.sleep(0.02)
+
 
     def subscribe(self, host):
         if host not in self.memberships:
