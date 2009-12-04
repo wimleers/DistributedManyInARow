@@ -228,6 +228,7 @@ class ManyInARowService(OneToManyService):
             # Broadcast the updated game list.
             self.buildServiceDescription()
 
+
     def stats(self):
         stats = {
             'otherPlayers' : copy.deepcopy(self.otherPlayers),
