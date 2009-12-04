@@ -36,29 +36,886 @@
 \tracking_changes false
 \output_changes false
 \author "" 
+\author "" 
 \end_header
 
 \begin_body
 
-\begin_layout Section
-Comparison of zeroconf and IP multicast
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Titelblad.
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
-Neighborhood.py
+Aanpak
+\end_layout
+
+\begin_layout Standard
+We zijn begonnen met gewoonweg vier op een rij te bouwen.
+ Vervolgens hebben we alle onderliggende lagen gebouwd die nodig zijn voor
+ een distributed vier op een rij en de netwerklogica abstraheren, zodat
+ we het spel zelf eenvoudig kunnen definiëren a.d.h.v.
+ het sturen van berichten en het aanvragen van de mutex, en niets méér.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Uitgebreidere beschrijving nodig waarschijnlijk.
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
-DistributedGame.py
+DistributedGame
+\end_layout
+
+\begin_layout Standard
+DistributedGame is een Python package dat alle logica voor een gedistribueerd
+ spel abstraheert.
+ Het is opgebouwd uit meerdere lagen — iedere laag heeft zijn verantwoordelijkhe
+id, net zoals bij het TCP/IP model 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "TCP/IP model"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Zeroconf networking versus IP multicast
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Zeroconf-vs-multicast"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Eerst was het de bedoeling om alles d.m.v.
+ zeroconf (zero configuration) networking te doen.
+ Zeroconf werkt op basis van DNS en het wisselt informatie uit d.m.v.
+ DNS TXT records.
+ In verscheidene bronnen werd melding gemaakt van een maximum grootte van
+ DNS TXT records van 64 KB.
+ Nu werd daar niet expliciet bij vermeld dat daarmee bedoeld werd dat de
+ 
+\emph on
+som
+\emph default
+ van de lengtes van alle DNS TXT records van één zeroconf service 64 KB
+ mocht zijn, maar dat een enkel DNS record steeds beperkt was tot 255 bytes.
+\end_layout
+
+\begin_layout Standard
+We hadden het dus een mooie abstractielaag rond zeroconf gebouwd en — hoewel
+ ze werkte — bleek onbruikbaar in de praktijk, tenzij er aan sterke fragmentatie
+ werd gedaan.
+ We hebben dus uiteindelijk geopteerd om toch IP multicast te gebruiken
+ voor het zenden van berichten: daar ligt de limiet van een énkel bericht
+ op 64 KB.
+\end_layout
+
+\begin_layout Standard
+We hebben deze zeroconf abstractie wel nog steeds gebruikt voor automatische
+ discovery van peers en het uitwisselen van informatie over de actieve spellen.
+\end_layout
+
+\begin_layout Standard
+Opmerking: als we betere parate kennis hadden gehad van DNS hadden we dus
+ opgemerkt dat 64 KB per TXT record niet kon, net omdat de limiet van een
+ DNS pakket als geheel al begrensd wordt door de limiet van UDP, want DNS
+ werkt bovenop UDP.
+ 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+TODO: bron
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Schema
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename images/DistributedGame.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Structuur.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+ZeroconfMessaging.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:ZeroconfMessaging.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Dit is de abstractie rond zeroconf networking 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "zeroconf networking"
+
+\end_inset
+
+ die reeds werd aangehaald in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Zeroconf-vs-multicast"
+
+\end_inset
+
+.
+ Er zijn callbacks voor:
 \end_layout
 
 \begin_layout Itemize
-Gebruikt vector clock i.p.v.
- Lamport clock o.w.v.:
+de registratie van de eigen service en het onregistreren 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+beter woord?
+\end_layout
+
+\end_inset
+
+ van de service
+\end_layout
+
+\begin_layout Itemize
+het ontdekken, updaten (gewijzigde TXT records) en verwijderen van een peer
+\end_layout
+
+\begin_layout Standard
+Berichten worden verstuurd door middel van de 
+\family typewriter
+inbox
+\family default
+ en 
+\family typewriter
+outbox
+\family default
+ queues.
+ Voordat deze queues aangesproken worden, moet er uiteraard eerst een lock
+ aangevraagd worden.
+\end_layout
+
+\begin_layout Standard
+Er wordt gebruik gemaakt van pybonjour 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "pybonjour"
+
+\end_inset
+
+, wat een directe wrapper rond de C API is van de Bonjour (door Apple) 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Apple Bonjour"
+
+\end_inset
+
+ implementatie van zeroconf.
+ Het zou ook op Linux moeten werken, meerbepaald met Avahi 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Avahi"
+
+\end_inset
+
+, welke een compatibility layer heeft die de Bonjour API nabootst.
+ Jammer genoeg is die compatibility layer niet 
+\emph on
+volledig
+\emph default
+, terwijl wij vrijwel de volledige API gebruiken (het crasht onder andere
+ bij aanroepen naar 
+\family typewriter
+DNSServiceAddRecord
+\family default
+).
+\end_layout
+
+\begin_layout Standard
+Deze Python module heeft zijn eigen thread (
+\family typewriter
+ZeroconfMessaging-Thread
+\family default
+).
+ De code flow is onvermijdelijk heel erg moeilijk te volgen omdat je een
+ service registreert (
+\family typewriter
+DNSServiceRegister
+\family default
+) bij de zeroconf daemon, tesamen met een callback function.
+ Ook geef je een 
+\emph on
+service type
+\emph default
+ op, bijvoorbeeld 
+\family typewriter
+_http._tcp
+\family default
+.
+ Tegelijkertijd wordt er gezocht naar services met hetzelfde service type,
+ dit noemt men 
+\emph on
+browsen
+\emph default
+ (
+\family typewriter
+DNSServiceBrowse
+\family default
+), waarbij een callback functie moet meegegeven worden.
+ Als die callback wordt aangeroepen, moet je weer een andere functie aanroepen
+ om gevonden peers te 
+\emph on
+resolven
+\emph default
+ (
+\family typewriter
+DNSServiceResolve
+\family default
+) en ook die een callback function meegeven.
+ Als díe callback functie wordt aangeroepen, moet je nog eens twéé andere
+ functies aanroepen, en moet je opnieuw callback functies meegeven om het
+ DNS A record op te vragen om het IP adres van deze peer te bemachtigen
+ ( 
+\family typewriter
+DNSServiceQueryRecord(rrtype = kDNSServiceType_A)
+\family default
+) en een 
+\begin_inset Quotes eld
+\end_inset
+
+long lived TXT record query
+\begin_inset Quotes erd
+\end_inset
+
+ (
+\family typewriter
+DNSServiceQueryRecord(flags = kDNSServiceFlagsLongLivedQuery, rrtype = kDNSServi
+ceType_TXT)
+\family default
+), waarvan de callback functie elke keer wordt aangeroepen als het TXT record
+ van die peer verandert.
+\end_layout
+
+\begin_layout Standard
+In deze laatste callback functie zit vervolgens de meeste logica, want die
+ ontvangt enkel geüpdatete 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+grammatica?
+\end_layout
+
+\end_inset
+
+ TXT records als geheel, de exacte verandering moet er nog uitgefilterd
+ worden!
+\end_layout
+
+\begin_layout Standard
+Voor pybonjour was er geen documentatie omdat die in principe hetzelfde
+ is als die van Bonjour zelf.
+ Regelmatig waren er heel erg tricky edge cases die nergens expliciet vermeld
+ waren, maar na een zoektocht door de documentatie was er wel achter te
+ komen.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename images/zeroconf naming scheme.gif
+	width 80text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Zeroconf networking addressing scheme.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Zeroconf-networking-addressing"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+IPMulticastMessaging.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:IPMulticastMessaging.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Zoals de naam al doet vermoeden is dit dan de abstractie rond IP multicast
+ networking 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "IP multicast"
+
+\end_inset
+
+ die ook reeds werd aangehaald in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Zeroconf-vs-multicast"
+
+\end_inset
+
+.
+ Berichten worden wederom verstuurd door middel van de 
+\family typewriter
+inbox
+\family default
+ en 
+\family typewriter
+outbox
+\family default
+ queues.
+ Ook voordat deze queues aangesproken worden, moet er uiteraard eerst een
+ lock aangevraagd worden.
+\end_layout
+
+\begin_layout Standard
+Er worden twee sockets aangemaakt: één om multicast berichten op te ontvangen
+ en één met een random poort om berichten te verzenden.
+ Deze laatste socket is in principe overbodig, maar zorgt ervoor dat iedere
+ instantie een unieke poort gebruikt, wat nodig is indien je meerdere instanties
+ van 
+\family typewriter
+ZeroconfMessaging
+\family default
+ naast elkaar wilt draaien.
+ De zeroconf daemon genereert dan automatisch een nieuwe naam in het geval
+ van een collision.
+ Zo krijg je dan bijvoorbeeld '
+\family typewriter
+WimLeers.local
+\family default
+' en '
+\family typewriter
+WimLeers.local (2)
+\family default
+'.
+\end_layout
+
+\begin_layout Standard
+Aangezien iedereen berichten kan sturen naar een multicast group, is er
+ een mechanisme ingebouwd om te 
+\begin_inset Quotes eld
+\end_inset
+
+subscriben
+\begin_inset Quotes erd
+\end_inset
+
+ op de berichten van een bepaald IP.
+ Via zeroconf vind je namelijk peers met een overeenkomstig service type
+ en diens IP adressen en op die manier kan je dus enkel de UDP pakketten
+ die van die IP adressen komen, doorlaten.
+ Dit biedt enige weerstand tegen flooding.
+ 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+makes sense?
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Ook deze Python module heeft zijn eigen thread (
+\family typewriter
+IPMulticastMessaging-Thread
+\family default
+).
+ Dat is nodig om packets te ontvangen, welke tevens gefragmenteerd kunnen
+ zijn.
+ Voor fragmentatie wordt een eenvoudig protocol gebruikt: ten eerste wordt
+ er een unieke packet ID gegenereerd (een UUID), vervolgens wordt het packet
+ gefragmenteerd verzonden.
+ Er is een fixed header size van 46 bytes: 36 karakters voor de UUID, 5
+ karakters voor het sequence number en 5 karakters die het totale aantal
+ fragmenten voorstellen.
+ De fragmenten worden per packet ID in een buffer bijgehouden en zodra er
+ evenveel fragmenten zijn als er zouden moeten zijn, worden ze weer samengevoegd
+ tot een enkel pakket.
+\end_layout
+
+\begin_layout Subsection
+Service.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Service.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Deze Python module stelt een 
+\begin_inset Quotes eld
+\end_inset
+
+high-level service
+\begin_inset Quotes erd
+\end_inset
+
+ voor, waarmee bedoeld wordt dat als je deze module gebruikt, je geen details
+ moet kennen wat betreft service discovery (waarvoor zeroconf networking
+ gebruikt wordt) en multicast messaging (waarvoor IP multicast networking
+ gebruikt wordt).
+\end_layout
+
+\begin_layout Subsubsection
+Service
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Service"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+Service
+\family default
+ is de basis klasse en intialiseert de IP multicast layer (
+\family typewriter
+IPMulticastMessaging
+\family default
+ instantie) en de zeroconf layer (
+\family typewriter
+ZeroconfMessaging
+\family default
+ instantie).
+ Deze heeft callbacks die overeenkomen met die van 
+\family typewriter
+ZeroconfMessaging
+\family default
+ (zie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:ZeroconfMessaging.py"
+
+\end_inset
+
+).
+ Zodra een peer ontdekt wordt, wordt automatisch 
+\family typewriter
+IPMulticastMessaging
+\family default
+'s 
+\family typewriter
+subscribe()
+\family default
+ method aangeroepen met diens IP.
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+ZeroconfMessaging
+\family default
+ wordt dus gebruikt om andere instanties van een service met hetzelfde type
+ te ontdekken en 
+\family typewriter
+IPMulticastMessaging
+\family default
+ wordt gebruikt om effectief berichten uit te wisselen.
+\end_layout
+
+\begin_layout Subsubsection
+OneToOneService
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:OneToOneService"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Deze subclass van 
+\family typewriter
+Service
+\family default
+ wordt niet gebruikt: hij is er voor de volledigheid.
+ Deze class dient gebruikt te worden indien er maar 1 bestemming is binnen
+ een applicatie.
+ Bijvoorbeeld 1 globale chat room i.p.v.
+ meerdere chat rooms.
+\end_layout
+
+\begin_layout Subsubsection
+OneToManyService
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:OneToManyService"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Dit is dus de tegenhanger van 
+\family typewriter
+OneToOneService
+\family default
+ en wordt wél gebruikt.
+ Onze implementatie ondersteunt namelijk meerdere spellen tegelijkertijd
+ 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+verwijzing naar verderop?
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Om dit mogelijk te maken, voegt deze een extra laag toe: bij het verzenden
+ dien je een bestemming op te geven en voor iedere bestemming wordt automatisch
+ een aparte inbox aangemaakt.
+ Dit is dus in feite een routerlaag, die ervoor zorgt dat de berichten op
+ de juiste bestemming 
+\emph on
+binnen
+\emph default
+ het programma terecht komen.
+\end_layout
+
+\begin_layout Standard
+Er is ook één speciale bestemming: de 
+\emph on
+service-to-service
+\emph default
+ bestemming.
+ Deze is voorbehouden om pakketten op 
+\begin_inset Quotes eld
+\end_inset
+
+globaal niveau
+\begin_inset Quotes erd
+\end_inset
+
+ uit te wisselen (bijvoorbeeld tijdsynchronisatie) terwijl de 
+\begin_inset Quotes eld
+\end_inset
+
+gewone bestemmingen
+\begin_inset Quotes erd
+\end_inset
+
+ op het 
+\begin_inset Quotes eld
+\end_inset
+
+lokale niveau
+\begin_inset Quotes erd
+\end_inset
+
+ werken (bijvoorbeeld meerdere chat rooms).
+\end_layout
+
+\begin_layout Standard
+Omdat we bij een hogere laag zijn aangekomen, moet je niet meer rechtstreeks
+ op queues werken, maar zijn er methods voorzien om dit intuïtiever te maken.
+\end_layout
+
+\begin_layout Standard
+Voor 
+\family typewriter
+OneToManyService
+\family default
+ zijn er unit tests voorzien: we kunnen dus zeker zijn dat de routerfunctionalit
+eit correct werkt.
+\end_layout
+
+\begin_layout Subsection
+VectorClock.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:VectorClock.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Dit is een eenvoudige klasse die een vector clock implementeert, samen met
+ een hoop nuttige methods: 
+\begin_inset Formula $<$
+\end_inset
+
+, 
+\begin_inset Formula $\leq$
+\end_inset
+
+, 
+\begin_inset Formula $=$
+\end_inset
+
+, 
+\begin_inset Formula $\neq$
+\end_inset
+
+, 
+\begin_inset Formula $\geq$
+\end_inset
+
+, 
+\begin_inset Formula $>$
+\end_inset
+
+ en 
+\family typewriter
+isConcurrentWith(other)
+\family default
+.
+ Dit zijn de standaard operaties (zie ook 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "lamport vs vector"
+
+\end_inset
+
+).
+ Daarnaast hebben we ook enkele minder voor de hand liggende operaties geïmpleme
+nteerd.
+\end_layout
+
+\begin_layout Standard
+De eerste, 
+\family typewriter
+isImmediatelyFollowedBy(other)
+\family default
+, returnet 
+\family typewriter
+True
+\family default
+ als en slechts als de vector clock 
+\family typewriter
+other
+\family default
+ een enkele component is waarvan de waarde precies één meer is en de overige
+ componenten gelijk zijn.
+ Een geldig voorbeeld is dan:
+\begin_inset Formula \begin{eqnarray*}
+clock(A) & = & \{A:1,B:3,C:0\}\\
+clock(C) & = & \{A:1,B:3,C:1\}\\
+clock(A) & isImmediatelyFollowedBy & clock(C)\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+en een ongeldig voorbeeld:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \begin{eqnarray*}
+clock(A) & = & \{A:1,B:3,C:0\}\\
+clock(C) & = & \{A:1,B:3,C:x\}\\
+clock(A) & isImmediatelyFollowedBy & clock(C)\\
+ & met\, x\,\neq1\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+De tweede, 
+\family typewriter
+isImmediatelyConcurrentWith(other)
+\family default
+, returnet 
+\family typewriter
+True
+\family default
+ als en slechts als de vector clock 
+\family typewriter
+other
+\family default
+ een enkele component is waarvan de waarde precies één meer is, een enkele
+ component waarvan de waarde precies één minder is en de de overige componenten
+ gelijk zijn.
+ Een geldig voorbeeld is dan:
+\begin_inset Formula \begin{eqnarray*}
+clock(A) & = & \{A:1,B:3,C:0\}\\
+clock(C) & = & \{A:0,B:3,C:1\}\\
+clock(A) & isImmediatelyConcurrentWith & clock(C)\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+en twee ongeldige voorbeelden:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \begin{eqnarray*}
+clock(A) & = & \{A:1,B:3,C:0,D:2\}\\
+clock(C) & = & \{A:0,B:3,C:1,D:5\}\\
+clock(A) & isImmediatelyConcurrentWith & clock(C)\end{eqnarray*}
+
+\end_inset
+
+
+\begin_inset Formula \begin{eqnarray*}
+clock(A) & = & \{A:1,B:3,C:0,D:2\}\\
+clock(C) & = & \{A:0,B:3,C:x,D:2\}\\
+clock(A) & isImmediatelyConcurrentWith & clock(C)\\
+ & met\, x\,\neq1\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Een uitgebreide verzameling unit tests zorgt ervoor dat 
+\family typewriter
+VectorClock
+\family default
+ zeker goed werkt.
+\end_layout
+
+\begin_layout Subsection
+GlobalState.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:GlobalState.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+GlobalState
+\family default
+ zorgt ervoor dat berichten in de correcte volgorde worden gezet voordat
+ ze doorgegeven worden aan de hoger liggende laag.
+ Hierbij wordt gebruik gemaakt van vector klokken.
+ We gebruiken vector klokken en niet Lamport klokken o.w.v.:
 \end_layout
 
 \begin_layout Quotation
-Mattern and Fidge developed vector clocks to voercome the shortcoming of
+Mattern and Fidge developed vector clocks to overcome the shortcoming of
  Lamport's clocks: the fact that from 
 \begin_inset Formula $L(e)<L(e')$
 \end_inset
@@ -81,14 +938,505 @@ key "lamport vs vector"
 
 \end_layout
 
+\begin_layout Standard
+
+\family typewriter
+GlobalState
+\family default
+ verwacht een 
+\family typewriter
+OneToManyService
+\family default
+ instantie, een session UUID en een sender UUID.
+ De session UUID dient als destination voor (als 
+\begin_inset Quotes eld
+\end_inset
+
+kanaal
+\begin_inset Quotes erd
+\end_inset
+
+ eigenlijk) 
+\family typewriter
+OneToManyService
+\family default
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:OneToManyService"
+
+\end_inset
+
+.
+ In het chatroom voorbeeld komen zo alle berichten voor die chatroom bij
+ alle andere deelnemers aan.
+ De sender UUID dient om iedere deelnemer uniek te kunnen identificeren.
+\end_layout
+
+\begin_layout Standard
+Even vooruitblikkend op vier op een rij: het is een vereiste dat de volgorde
+ van zetten overal hetzelfde is.
+ Dat zal geregeld worden d.m.v.
+ een gedistribueerde mutex in 
+\family typewriter
+Game.py
+\family default
+ (zie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Game.py"
+
+\end_inset
+
+).
+ Als extra eigenschap stellen we nog dat voor niet-mutual exclusion berichten
+ moet gelden dat indien ze gelijk gestuurd worden, de volgorde niet uitmaakt.
+ Bijvoorbeeld in het geval van chatberichten maakt de volgorde uit waarin
+ iemand iets zegt en wanneer mensen afwisselend iets zeggen, maar als ze
+ op hetzelfde tijdstip iets zeggen, maakt de volgorde niet uit.
+ Vandaar de 
+\begin_inset Quotes eld
+\end_inset
+
+extra operaties
+\begin_inset Quotes erd
+\end_inset
+
+ in 
+\family typewriter
+VectorClock.py
+\family default
+ (zie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:VectorClock.py"
+
+\end_inset
+
+): 
+\family typewriter
+isImmediatelyFollowedBy(other)
+\family default
+ en 
+\family typewriter
+isImmediatelyConcurrentWith(other)
+\family default
+.
+ Gebruik maken van deze operaties zorgt ervoor dat steeds gewacht wordt
+ op ontbrekende berichten!
+\end_layout
+
+\begin_layout Standard
+Ook deze Python module heeft zijn eigen thread (
+\family typewriter
+GlobalState-Thread
+\family default
+).
+ Dat is nodig om berichten te herordenen indien ze niet in de juiste volgorde
+ aan zijn gekomen.
+\begin_inset Newline newline
+\end_inset
+
+Berichten die door de 
+\family typewriter
+OneToManyService
+\family default
+ ontvangen werden met onze session UUID als bestemming, worden opgehaald
+ en in een wachtkamer geplaatst.
+ Nadat alle binnekomende berichten opgehaald zijn, worden de berichten in
+ de wachtkamer volgens hun vectorklok gesorteerd.
+ Die met de laagste klokwaarde wordt er uitgepikt.
+ Indien de huidige klokwaarde van de 
+\family typewriter
+GlobalState
+\family default
+ (zijn 
+\emph on
+frontier
+\emph default
+) 
+\begin_inset Quotes eld
+\end_inset
+
+immediately followed
+\begin_inset Quotes erd
+\end_inset
+
+ of 
+\begin_inset Quotes eld
+\end_inset
+
+immediately concurrent
+\begin_inset Quotes erd
+\end_inset
+
+ is door deze laagste klokwaarde, dan mag dit bericht ontvangen worden en
+ wordt het uit de wachtkamer gehaald.
+ Vervolgens wordt de eerstvolgende laagste klokwaarde eruit gepikt, enzovoort,
+ totdat er geen bericht meer kan ontvangen worden.
+\end_layout
+
+\begin_layout Standard
+Alle verzonden en ontvangen berichten worden opgeslagen in een SQLite database,
+ in een tabel 
+\family typewriter
+MessageHistory
+\family default
+, niet zozeer voor persistentie, maar vooral o.w.v.
+ anders overbodig geheugengebruik: het is niet nodig om alle berichten in
+ het geheugen te houden.
+ Indien er dan achteraf een nieuw proces wilt joinen, kan de global state
+ in blokken van berichten die uit deze database worden gehaald, worden doorgestu
+urd (via de speciale 
+\emph on
+service-to-service
+\emph default
+ bestemming van 
+\family typewriter
+OneToManyService
+\family default
+) en zo ook de gehele glbobal state reconstrueren.
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Kristof: kijk of dit nog steeds juist is als je klaar bent met de implementatie.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Kristof: voeg liveness checking nog toe hier.
+ Tenminste, als je 't in GlobalState implementeert.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Ook voor GlobalState zijn er uitgebreide unit tests en ook daarvan zijn
+ we dus zeker dat het goed werkt.
+ Bovendien worden hierbij 
+\family typewriter
+VectorClock
+\family default
+ en 
+\family typewriter
+Service
+\family default
+ gebruikt, dus indien deze tests succesvol blijken, hebben we ook die nogmaals
+ getest.
+\end_layout
+
+\begin_layout Subsection
+Player.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Player.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Deze extreem eenvoudige 
+\family typewriter
+Player
+\family default
+ klasse stelt een speler voor in een gedistribueerd spel.
+ Er wordt automatisch een unieke identifier gegenereerd: een UUID.
+ Aan de hand van de base 10 voorstelling van deze UUID wordt ook een unieke
+ kleur gegenereerd.
+\end_layout
+
+\begin_layout Subsection
+Game.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Game.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Ten slotte is er nog de 
+\family typewriter
+Game
+\family default
+ klasse, die een 
+\family typewriter
+OneToManyService
+\family default
+ en een 
+\family typewriter
+Player
+\family default
+ verwacht als parameters.
+ Vervolgens genereert deze een UUID voor het spel (een 
+\emph on
+sessie
+\emph default
+ in algemenere termen) en start een 
+\family typewriter
+GlobalState
+\family default
+ object met de ontvangen 
+\family typewriter
+OneToManyService
+\family default
+, de gegenereerde game UUID als session UUID en de player UUID als sender
+ UUID.
+\end_layout
+
+\begin_layout Standard
+Verder abstraheert deze klasse het verzenden en ontvangen van berichten
+ via de global state en het verzenden en ontvangen van de speciale service
+ berichten, wat niet via de 
+\family typewriter
+GlobalState
+\family default
+ maar rechtstreeks via de 
+\family typewriter
+OneToManyService
+\family default
+ verloopt.
+\end_layout
+
+\begin_layout Standard
+Ten slotte voorziet deze klasse gedistribueerde mutex functionaliteit: een
+ rechtoe-rechtaan implementatie van het Ricart-Agrawala 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Ricart-Agrawala"
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+ook verwijzing naar boek?
+\end_layout
+
+\end_inset
+
+ algoritme was mogelijk dankzij het gebruik van vectorklokken, UUIDs om
+ iedere 
+\family typewriter
+Player
+\family default
+ te identificeren en de onderliggende netwerklagen die de complexiteit van
+ het netwerk abstraheren.
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+Game
+\family default
+ heeft ook weer een eigen thread (
+\family typewriter
+Game-Thread
+\family default
+), wat nodig is omdat 
+\family typewriter
+Game
+\family default
+ ontworpen is om gesubclassed te worden en het spel in goede banen te leiden.
+ Zie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:ManyInARowGame.py"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Many In A Row
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Many-In-A"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+ManyInARowService.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:ManyInARowService.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Hierin vind je de 
+\family typewriter
+ManyInARowService
+\family default
+ class, wat een subclass is van 
+\family typewriter
+OneToManyService
+\family default
+.
+ Het bevat enkele vaste instellingen, zoals het zeroconf service type (
+\family typewriter
+_Many_In_A_Row._tcp
+\family default
+) en multicast poort nummer.
+ Het voorziet een hele hoop callbacks die betrekking hebben op de GUI, zodat
+ de GUI peers, players en actieve games kan tonen.
+\end_layout
+
+\begin_layout Standard
+Aan de hand van de callbacks die het ontvangt van 
+\family typewriter
+ZeroconfMessaging
+\family default
+ (via 
+\family typewriter
+OneToManyService
+\family default
+), is het in staat om bij iedere netwerk-wijde 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+spelling?
+\end_layout
+
+\end_inset
+
+ verandering zijn eigen service description te updaten en zo de huidige
+ netwerk-wijde toestand verder te propageren.
+ Het houdt een lijst bij van actieve spellen en welke spelers erin meespelen
+ en speelt deze informatie door naar de GUI via callbacks.
+ 
+\end_layout
+
+\begin_layout Standard
+Er zijn ook 3 methods voorzien die vanuit 
+\family typewriter
+ManyInARowGame
+\family default
+ dienen aangeroepen te worden opdat de netwerk-wijde toestand up-to-date
+ is en blijft: 
+\family typewriter
+hostGame()
+\family default
+, 
+\family typewriter
+joinGame()
+\family default
+ en 
+\family typewriter
+leaveGame()
+\family default
+.
+ 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+niet duidelijk genoeg
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+ManyInARowGame.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:ManyInARowGame.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Nu zijn we helemaal bovenaan in de hiërarchie: hierin zit alle feitelijke
+ spellogica.
+ Al het voorgaande is puur ter ondersteuning: om deze code eenvoudig te
+ maken.
+\end_layout
+
+\begin_layout Standard
+Voor ieder soort actie in het spel is er een 
+\begin_inset Quotes eld
+\end_inset
+
+message type
+\begin_inset Quotes erd
+\end_inset
+
+ en …
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+aan te vullen …
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Blaat, pleeh en meer van dat
+\end_layout
+
 \begin_layout Itemize
 Inzicht: een vector klok ís de frontier van een consistent cut (althans
- in een verzonden bericht
+ in een verzonden bericht) 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+iemand uitleg opschrijven?
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Itemize
 Snapshot algorithm van Chandy en Lamport ( p453) is onmogelijk te gebruiken
  omdat daarvoor een FIFO-ordered message delivery voor nodig is.
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+hoort bij volgende punt
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Itemize
@@ -120,6 +1468,17 @@ Om verloren gegane messages weer op te vragen, is daarbovenop het volgende
  is en worden de berichten bij andere peers opgevraagd.
  Als ook die het niet hebben, worden de overeenkomstige berichten in de
  set van inkomende berichten gewist.
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+moet nog deels geïmplementeerd worden, en staat al deels beschreven in de
+ GlobalState sectie
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Itemize
@@ -133,16 +1492,187 @@ Toekomstige optimalisatie.
 \end_layout
 
 \begin_layout Itemize
-Inzicht: playerUUID moet telkens bij het joinen van een spel gegenereerd
- worden (dus uniek zijn), want anders is joinen na leaven onmogelijk (omdat
- de vroegere spelhistorie anders gaat conflicteren).
- Als je echter als een bestaande (maar gestopte) speler wilt verder spelen,
- moet er eerst toestemming gevraagd worden aan de andere spelers.
-\end_layout
-
-\begin_layout Itemize
 Mogelijke extra: beperkt aantal toegelaten spelers.
  Vereist een coördinator en dus ook een election algoritme.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "TCP/IP model"
+
+\end_inset
+
+
+\emph on
+TCP/IP model
+\emph default
+, Wikipedia, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://en.wikipedia.org/wiki/TCP/IP_model
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "zeroconf networking"
+
+\end_inset
+
+
+\emph on
+Zero configuration networking
+\emph default
+, Wikipedia, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://en.wikipedia.org/wiki/Zero_configuration_networking
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "RFC3927"
+
+\end_inset
+
+
+\emph on
+RFC 3927: Dynamic Configuration of IPv4 Link-Local Addresses
+\emph default
+, S.
+ Cheshire (Apple Computer); B.
+ Aboboa (Microsoft Corporation); E.Guttman (Sun Microsystems), May 2005,
+ 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://tools.ietf.org/html/rfc3927
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "pybonjour"
+
+\end_inset
+
+
+\emph on
+pybonjour: Pure-Python interface to Apple Bonjour and compatible DNS-SD
+ libraries
+\emph default
+, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://code.google.com/p/pybonjour/
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Apple Bonjour"
+
+\end_inset
+
+
+\emph on
+Bonjour
+\emph default
+, Apple, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://apple.com/bonjour
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Avahi"
+
+\end_inset
+
+
+\emph on
+Avahi
+\emph default
+, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://avahi.org/
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "IP multicast"
+
+\end_inset
+
+
+\emph on
+IP multicast
+\emph default
+, Wikipedia, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://en.wikipedia.org/wiki/IP_multicast
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Bibliography
@@ -158,6 +1688,27 @@ key "lamport vs vector"
  Time and Global States (page 447)
 \emph default
 , George Coulouris; Jean Dollimore; Tim Kindberg, Addison Wesley (2005)
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Ricart-Agrawala"
+
+\end_inset
+
+Ricart-Agrawala algorithm, Wikipedia, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://en.wikipedia.org/wiki/Ricart-Agrawala_algorithm
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \end_body
