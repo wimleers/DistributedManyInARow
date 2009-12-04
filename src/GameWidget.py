@@ -89,10 +89,12 @@ class GameWidget(QtGui.QWidget):
     
     # Callbacks:
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
-        self.logList.addMessage(self.player, "successfully joined")
+        pass
+    """
         print "gameJoinedCallBack"
         # We know the number of rows and colums, build the GUI board.
         with self.lock:
+            self.logList.addMessage(self.player, "successfully joined")
             self.gameUUID = UUID
             self.nrCols = numCols
             self.nrRows = numRows
@@ -106,7 +108,8 @@ class GameWidget(QtGui.QWidget):
             
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("playerClicked(int)"), self.makeMove)
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("mouseHoverColumn(int)"), self.makeHoverMove)
-    
+"""
+        
     
     def enableClicks(self):
         print "enableClicks"
@@ -116,36 +119,41 @@ class GameWidget(QtGui.QWidget):
     
     
     def playerJoinedCallBack(self, playerUUID, newPlayer):
-        if(not self.layoutCreated):
-            self.createLayout()
-        
-        self.logList.addMessage(newPlayer, "successfully joined")
         print "playerJoinedCallBack"
         #playerUUID = new player's UUID
         #newplayer = new players object
         with self.lock:
-            newItem = QtGui.QListWidgetItem(newPlayer.name, self.ui.playerList)
-            newItem.setBackgroundColor(QtGui.QColor(newPlayer.color[0], newPlayer.color[1], newPlayer.color[2]))
-            self.ui.playerList.addItem(newItem)
-            
+            if(not self.layoutCreated):
+                self.createLayout()
+        
+            self.logList.addMessage(newPlayer, "successfully joined")
             self.players[playerUUID] = newPlayer
+            self.ui.playerList.clear();
+            for currentPlayer in self.players.values():
+                currentPlayer
+                newItem = QtGui.QListWidgetItem(currentPlayer.name, self.ui.playerList)
+                newItem.setBackgroundColor(QtGui.QColor(currentPlayer.color[0], currentPlayer.color[1], currentPlayer.color[2]))
+                self.ui.playerList.addItem(newItem)
+            
+            
     
     def playerLeftCallBack(self, playerUUID):
-        self.logList.addMessage(self.players[playerUUID], "has left")
         print "playerLeftCallBack"
         with self.lock:
-            playername = self.players[playerUUID].name
-            items = self.ui.playerList.findItems(playerName)
-            for item in items:
-                self.ui.playerList.removeItemWidget(item)
+            self.logList.addMessage(self.players[playerUUID], "has left")
                 
             del self.players[playerUUID]
+            self.ui.playerList.clear();
+            for currentPlayer in self.players.values():
+                newItem = QtGui.QListWidgetItem(currentPlayer.name, self.ui.playerList)
+                newItem.setBackgroundColor(QtGui.QColor(currentPlayer.color[0], currentPlayer.color[1], currentPlayer.color[2]))
+                self.ui.playerList.addItem(newItem)
 
 
     def chatCallBack(self, playerUUID, message):
-        self.logList.addMessage(self.players[playerUUID], "said: " + message)
         print "chatCallBack"
         with self.lock:
+            self.logList.addMessage(self.players[playerUUID], "said: " + message)
             color = QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2])
             playerName = self.players[playerUUID].name
             newItem = QtGui.QListWidgetItem(playerName + ": " + message, self.ui.messageList)
@@ -154,22 +162,24 @@ class GameWidget(QtGui.QWidget):
         
     
     def moveCallBack(self, playerUUID, col, row):
-        self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + str(col) + ", " + str(row) + ")")
         print "moveCallBack"
         with self.lock:
+            self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + str(col) + ", " + str(row) + ")")
             self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
     
     def playerWonCallBack(self, winners, currentGoal):
-        self.logList.addMessage(self.players[winnerUUID], "has won round " + currentGoal)
+        
         print "playerWonCallBack"
         with self.lock:
             winnerUUID = winners[currentGoal]
+            self.logList.addMessage(self.players[winnerUUID], "has won round " + str(currentGoal))
             name = self.players[winnerUUID].name
             self.winnerBox.setWindowTitle("Round finished")
             self.winnerBox.setText(name + " has won this round")
             self.winnerBox.exec_()
         
     def gameFinishedCallBack(self, winners):
+        self.logList.addMessage(self.player, "the game has finished")
         print "gameFinishedCallBack"
         i = 0
         winnerStr = ""
