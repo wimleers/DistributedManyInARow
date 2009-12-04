@@ -115,26 +115,55 @@ class VectorClock(object):
 
     def isImmediatelyFollowedBy(self, other):
         """Returns True if and only if the other vector clock contains a
-        single id for which the value is 1 more.
+        single component for which the value is 1 more, with all other
+        components being equal.
         """
         self._mergeKeys(other)
         self._binaryOperationCheck(other)
         offsetsOfOne = 0
+        equalities = 0
         for id in self.clock.keys():
             if (self.clock[id] + 1) == other.clock[id]:
                 offsetsOfOne += 1
-        if offsetsOfOne != 1:
-            return False
-        else:
+            elif self.clock[id] == other.clock[id]:
+                equalities += 1
+        if offsetsOfOne == 1 and equalities == len(self.clock.keys()) - 1:
             return True
+        else:
+            return False
 
 
     def isImmediatelyConcurrentWith(self, other):
-        """Returns True if a 2 vector clocks are concurrent, but only in 2 ids
-        and a difference of 1.
+        """Returns True if a 2 vector clocks are concurrent, but only in 2
+        components and a difference of 1, with all other components being
+        equal.
         """
         self._mergeKeys(other)
-        return set(self.clock.keys()) == set(other.clock.keys()) and self.isImmediatelyFollowedBy(other) and other.isImmediatelyFollowedBy(self)
+        return set(self.clock.keys()) == set(other.clock.keys()) and self._isImmediatelyConcurrentWithHelper(other) and other._isImmediatelyConcurrentWithHelper(self)
+
+
+    def _isImmediatelyConcurrentWithHelper(self, other):
+        """Returns True if and only if the other vector clock contains a
+        single component for which the value is 1 more, another single
+        component for which the value is 1 less and with all other components
+        being equal.
+        """
+        self._mergeKeys(other)
+        self._binaryOperationCheck(other)
+        offsetsOfPlusOne = 0
+        offsetsOfMinusOne = 0
+        equalities = 0
+        for id in self.clock.keys():
+            if (self.clock[id] + 1) == other.clock[id]:
+                offsetsOfPlusOne += 1
+            if (self.clock[id] - 1) == other.clock[id]:
+                offsetsOfMinusOne += 1
+            elif self.clock[id] == other.clock[id]:
+                equalities += 1
+        if offsetsOfPlusOne == 1 and offsetsOfMinusOne == 1 and equalities == len(self.clock.keys()) - 2:
+            return True
+        else:
+            return False
 
 
     @staticmethod
