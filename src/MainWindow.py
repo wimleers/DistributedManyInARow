@@ -19,7 +19,7 @@ class MainWindow(QtGui.QMainWindow):
         #GUI
         self.createLayout()
         self.createMenu()
-        self.showMaximized()
+        self.show()
         self.succesBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Success", "Service started successfully", QtGui.QMessageBox.Ok, self)
         self.errorBox = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error", "Service registration failed, please restart.", QtGui.QMessageBox.Ok, self)
         

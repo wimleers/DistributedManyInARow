@@ -186,6 +186,7 @@ class GameWidget(QtGui.QWidget):
             self.winnerBox.exec_()
     
     def makeHoverMove(self, column):
+        print "hover column: " + str(column)
         with self.lock:
             row = self.manyInARow._makeDummyMove(column)
             if(row != -1):
@@ -196,7 +197,7 @@ class GameWidget(QtGui.QWidget):
     
     def createLayout(self):
         self.ui = uic.loadUi("GameWidget.ui", self)
-        self.scene = GraphicsScene(self.nrRows, self.nrCols, self)
+        self.scene = GraphicsScene(self.nrRows, self.nrCols, QtGui.QColor(self.player.color[0], self.player.color[1], self.player.color[2]), self)
         self.ui.graphicsView.setScene(self.scene)
         self.logList = LogWidget(self)
         self.logList.setMaximumSize(250, 200)
