@@ -1,4 +1,5 @@
 from PyQt4 import QtGui, QtCore
+from datetime import datetime
 
 class NetworkLobbyWidget(QtGui.QWidget):
 #Provides a list of availabe network games and peers
@@ -103,7 +104,10 @@ class NetworkLobbyGameItem(QtGui.QListWidgetItem):
     def __init__(self, text, view, UUID, game):
         QtGui.QListWidgetItem.__init__(self, text, view)
         
-        self.setToolTip(str("description: " + str(game['description']) + "\nRows: " + str(game['numRows']) + "\nCols: " + str(game['numCols']) + "\nWait time: " + str(game['waitTime']) + "\nStart time: " + str(game['starttime'])))
+        startTimeText = str(datetime.fromtimestamp(game['starttime']))
+
+        
+        self.setToolTip(str("description: " + str(game['description']) + "\nRows: " + str(game['numRows']) + "\nCols: " + str(game['numCols']) + "\nWait time: " + str(game['waitTime']) + "\nStart time: " + startTimeText))
         
         self.UUID = UUID
         self.gameName = text
@@ -111,6 +115,7 @@ class NetworkLobbyGameItem(QtGui.QListWidgetItem):
         self.numRows = game['numRows']
         self.numCols = game['numCols']
         self.waitTime = game['waitTime']
+
         self.startTime = game['starttime']
         
 

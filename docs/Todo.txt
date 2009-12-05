@@ -1,12 +1,5 @@
 GUI:
-- pauze inlassen tussen 2 zetten
-✓ preview van blokje laten zien ( waar het zal neerkomen ) -->DONE
-✓ meerdere games (tabs) --> DONE
-✓ chat per game --> DONE
-- game statistics: play time, welke players, kleur van players, ...
-- log in apart widget
-
-- esc disablen in startup scherm --> done
+- freeze knop is toegevoegd, moet freeze command nog aanroepen op backend. backend moet daarna ook unfreeze aanroepen om gui terug te enablen
 
 
 Internals:

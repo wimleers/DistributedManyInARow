@@ -67,14 +67,13 @@ class MainWindow(QtGui.QMainWindow):
         gameMenu = QtGui.QMenu("&Game", self)
         newGameAct = QtGui.QAction("Start &new", gameMenu)
         newGameAct.triggered.connect(self.createNewGame)
-        joinGameAct = QtGui.QAction("&Join existing", gameMenu)
-        joinGameAct.triggered.connect(self.joinGame)
+        quitAct = QtGui.QAction("&Close", gameMenu)
+        quitAct.triggered.connect(self.close)
         gameMenu.addAction(newGameAct)
-        gameMenu.addAction(joinGameAct)
+        gameMenu.addAction(quitAct)
         self.menuBar().addMenu(gameMenu)
         
     def createNewGame(self):
-        #TODO: implement. Start a new game using interface for network functionality
         newGameDialog = NewGameDialog(self)
         (gameName, gameComment, numRows, numCols, waitTime) = newGameDialog.getGameInfo()
         if(gameName != None):
@@ -219,52 +218,3 @@ if __name__ == "__main__":
     mainWindow = MainWindow()
     mainWindow.show()
     app.exec_()
-    
-    
-"""Following code was used as an example and can be used for future reference:
-def __init__(self, win_parent = None):
-        QtGui.QMainWindow.__init__(self, win_parent)
-        
-        #testing:
-        self.newGame(10, 15)
-        self.localGameTest()
-        
-        self.createMenu()
-
-    def newGame(self, nrRows = 7, nrCols = 7):
-        self.createLayout(nrRows, nrCols)
-        
-    def localGameTest(self):
-        self.inARow = 4
-        self.players = vieropeenrij.Players()
-        self.field = vieropeenrij.Field(10, 15)
-        self.players.addPlayer(vieropeenrij.Player("Brecht", QtGui.QColor(0, 20, 250)))
-        self.players.addPlayer(vieropeenrij.Player("Kristof", QtGui.QColor(255, 20, 0)))
-        QtCore.QObject.connect(self.graphicsScene, QtCore.SIGNAL("playerClicked(int)"), self.localGameClickTest)
-        QtCore.QObject.connect(self.graphicsScene, QtCore.SIGNAL("mouseHoverColumn(int)"), self.localGameHoverTest)
-        
-    def localGameClickTest(self, move):
-        print "Move" + str(move)
-        valid = self.field.makeMove (move, self.players.currentPlayer)
-        if(valid != -1):
-            #update GUI:
-            color = self.players.getCurrentPlayerColor()
-            self.graphicsScene.makeMove(move, valid, color)
-        else:
-            return
-        
-        won = self.field.checkWin(move, valid, self.inARow)
-        if won:
-            QtGui.QMessageBox.information(self, "Spel afgelopen", "Speler " + self.players.getCurrentPlayerName() + " heeft gewonnen!")
-        else:
-            self.players.getNextPlayer()
-            
-    def localGameHoverTest(self, columnIndex):
-        valid = self.field.getRowIndexByColumn(columnIndex)
-        print 'Valid: ' + str(valid)
-        if(valid != -1):
-            #update the gui
-            color = self.players.getCurrentPlayerColor()
-            self.graphicsScene.makeDummyMove(columnIndex, valid, color)
-            
-"""

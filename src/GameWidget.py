@@ -34,7 +34,7 @@ class GameWidget(QtGui.QWidget):
         self.manyInARow = None
         self.layoutCreated = False
         
-        self.winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, win_parent)
+        self.winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, self)
         
         #ensure threading safety:
         self.lock = threading.Condition()
@@ -86,6 +86,18 @@ class GameWidget(QtGui.QWidget):
         with self.lock:
             self.scene.block()
         self.manyInARow.makeMove(column)
+        
+    def freezeGame(self):
+        print "Freezing the game"
+        self.freezeButton.setText("Unfreeze")
+        self.freezeButton.clicked.connect(self.unfreezeGame)
+        #todo: pass the freeze command to the backend
+        
+    def unfreezeGame(self):
+        print "Unfreezing the game"
+        self.freezeButton.setText("Freeze")
+        self.freezeButton.clicked.connect(self.freezeGame)
+        #todo pass the unfreeze command to the backend
     
     # Callbacks:
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
@@ -169,7 +181,7 @@ class GameWidget(QtGui.QWidget):
             winnerUUID = winners[currentGoal]
             self.logList.addMessage(self.players[winnerUUID], "has won round " + str(currentGoal))
             name = self.players[winnerUUID].name
-            self.winnerBox.setWindowTitle("Round finished")
+            self.winnerBox.setWindowTitle("Round finished in game:  " + "\'"+self.gameName+"\'")
             self.winnerBox.setText(name + " has won this round")
             self.winnerBox.show()
         
@@ -181,9 +193,17 @@ class GameWidget(QtGui.QWidget):
             for winner in winners.items():
                 winnerStr = winnerStr + str(winner[0]) + " in a row: " + self.players[winner[1]].name + "\n"
                 
-            self.winnerBox.setWindowTitle("Game finished")
+            self.winnerBox.setWindowTitle("Game " + "\'"+self.gameName+"\'" + "finished")
             self.winnerBox.setText("The game has finished, the winners are: \n" + winnerStr)
             self.winnerBox.exec_()
+            
+    def gameFreezeCallback(self):
+        print "freezing via callback"
+        #todo backend has to call this function in order to freeze the game
+            
+    def gameUnfreezeCallback(self):
+        print "unfreezing via callback"
+        #todo backend has to call this function in order to unfreeze the game
     
     def makeHoverMove(self, column):
         print "hover column: " + str(column)
@@ -193,6 +213,7 @@ class GameWidget(QtGui.QWidget):
                 #update the gui
                 color = QtGui.QColor(self.player.color[0], self.player.color[1], self.player.color[2])
                 self.scene.makeDummyMove(column, row, color)
+                
         
     
     def createLayout(self):
@@ -201,7 +222,10 @@ class GameWidget(QtGui.QWidget):
         self.ui.graphicsView.setScene(self.scene)
         self.logList = LogWidget(self)
         self.logList.setMaximumSize(250, 200)
+        self.freezeButton = QtGui.QPushButton("Freeze", self)
+        self.freezeButton.clicked.connect(self.freezeGame)
         self.ui.verticalLayout.addWidget(self.logList)
+        self.ui.verticalLayout.addWidget(self.freezeButton)
         self.ui.chatEdit.returnPressed.connect(self.sendMessage)
         self.ui.show()
         self.layoutCreated = True
