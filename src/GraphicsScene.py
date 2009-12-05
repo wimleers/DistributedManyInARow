@@ -21,29 +21,42 @@ class GraphicsScene(QtGui.QGraphicsScene):
         self.waitText = QtGui.QGraphicsTextItem()
         self.waitText = self.addText("...Please wait...")
         self.waitText.setZValue(100)
+        self.freezeText = QtGui.QGraphicsTextItem()
+        self.freezeText = self.addText("...Game frozen... (brrrrrrrrr)")
+        self.waitText.setZValue(100)
         font = QtGui.QFont()
         font.setBold(True)
         font.setFamily("Comic Sans MS")
         font.setPointSize(30)
         self.waitText.setFont(font)
+        self.freezeText.setFont(font)
         self.waitText.setDefaultTextColor(QtGui.QColor(0,0,255))
+        self.freezeText.setDefaultTextColor(QtGui.QColor(0,0,255))
         sceneSize = self.sceneRect()
         midx = (sceneSize.width() / 2) - (self.waitText.boundingRect().width() / 2)
         midy = (sceneSize.height() / 2) - (self.waitText.boundingRect().height() / 2)
         self.waitText.setPos(midx, midy)
+        self.freezeText.setPos(midx, midy)
         self.waitText.hide()
+        self.freezeText.hide()
         
         self.rejectClicks = False
 
         
-    def block(self):
+    def block(self, freeze):
         self.setForegroundBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 180)))
-        self.waitText.show()
+        if(freeze):
+            self.freezeText.show()
+        else:
+            self.waitText.show()
         self.rejectClicks = True
     
-    def unblock(self):
+    def unblock(self, freeze):
         self.setForegroundBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
-        self.waitText.hide()
+        if(freeze):
+            self.freezeText.show()
+        else:
+            self.waitText.hide()
         self.rejectClicks = False
         
     def setupDefaultBoard(self, nrRows, nrCols):

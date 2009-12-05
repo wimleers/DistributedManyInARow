@@ -45,7 +45,8 @@ class GameWidget(QtGui.QWidget):
                                                     self.gameJoinedCallBack,
                                                     self.playerJoinedCallBack, self.playerLeftCallBack,
                                                     self.moveCallBack, self.enableClicks,
-                                                    self.playerWonCallBack, self.gameFinishedCallBack)
+                                                    self.playerWonCallBack, self.gameFinishedCallBack,
+                                                    self.freezeCallback, self.unfreezeCallback)
             if(not self.layoutCreated):
                 self.createLayout()
             self.manyInARow.start()
@@ -60,11 +61,12 @@ class GameWidget(QtGui.QWidget):
                                                     self.gameJoinedCallBack,
                                                     self.playerJoinedCallBack, self.playerLeftCallBack,
                                                     self.moveCallBack, self.enableClicks,
-                                                    self.playerWonCallBack, self.gameFinishedCallBack)
+                                                    self.playerWonCallBack, self.gameFinishedCallBack,
+                                                    self.freezeCallback, self.unfreezeCallback)
             
             self.gameUUID = self.manyInARow.UUID
             self.startTime = self.manyInARow.startTime
-            self.manyInARow.start()           
+            self.manyInARow.start()
         
         
     def getGameUUID(self):
@@ -84,20 +86,26 @@ class GameWidget(QtGui.QWidget):
         # Passes the move to the class coordinating the game (ManyInARowGame)
         print "Dropped in column: " + str(column)
         with self.lock:
-            self.scene.block()
+            self.scene.block(False)
         self.manyInARow.makeMove(column)
         
     def freezeGame(self):
         print "Freezing the game"
-        self.freezeButton.setText("Unfreeze")
-        self.freezeButton.clicked.connect(self.unfreezeGame)
-        #todo: pass the freeze command to the backend
+        with self.lock:
+            self.freezeButton.setDisabled(True)
+            self.freezeButton.setText("Unfreeze")
+            self.freezeButton.clicked.connect(self.unfreezeGame)
+            
+            self.manyInARow.freezeGame()
         
     def unfreezeGame(self):
         print "Unfreezing the game"
-        self.freezeButton.setText("Freeze")
-        self.freezeButton.clicked.connect(self.freezeGame)
-        #todo pass the unfreeze command to the backend
+        with self.lock:
+            self.freezeButton.setDisabled(True)
+            self.freezeButton.setText("Freeze")
+            self.freezeButton.clicked.connect(self.freezeGame)
+            
+            self.manyInARow.unfreezeGame()
     
     # Callbacks:
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
@@ -123,7 +131,7 @@ class GameWidget(QtGui.QWidget):
         print "enableClicks"
         if(self.scene != None):
             with self.lock:
-                self.scene.unblock()
+                self.scene.unblock(False)
     
     
     def playerJoinedCallBack(self, playerUUID, newPlayer):
@@ -197,13 +205,17 @@ class GameWidget(QtGui.QWidget):
             self.winnerBox.setText("The game has finished, the winners are: \n" + winnerStr)
             self.winnerBox.exec_()
             
-    def gameFreezeCallback(self):
+    def freezeCallback(self):
         print "freezing via callback"
-        #todo backend has to call this function in order to freeze the game
+        with self.lock:
+            self.freezeButton.setEnabled(True)
+            self.scene.block(True)
             
-    def gameUnfreezeCallback(self):
+    def unfreezeCallback(self):
         print "unfreezing via callback"
-        #todo backend has to call this function in order to unfreeze the game
+        with self.lock:
+            self.freezeButton.setEnabled(True)
+            self.scene.unblock(True)
     
     def makeHoverMove(self, column):
         print "hover column: " + str(column)
