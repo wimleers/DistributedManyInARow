@@ -34,7 +34,7 @@ class GameWidget(QtGui.QWidget):
         self.manyInARow = None
         self.layoutCreated = False
         
-        self.winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "", "", QtGui.QMessageBox.Ok, self)
+        self.winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, win_parent)
         
         #ensure threading safety:
         self.lock = threading.Condition()
@@ -89,12 +89,9 @@ class GameWidget(QtGui.QWidget):
     
     # Callbacks:
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
-        pass
-    """
         print "gameJoinedCallBack"
         # We know the number of rows and colums, build the GUI board.
         with self.lock:
-            self.logList.addMessage(self.player, "successfully joined")
             self.gameUUID = UUID
             self.nrCols = numCols
             self.nrRows = numRows
@@ -108,7 +105,6 @@ class GameWidget(QtGui.QWidget):
             
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("playerClicked(int)"), self.makeMove)
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("mouseHoverColumn(int)"), self.makeHoverMove)
-"""
         
     
     def enableClicks(self):
@@ -168,7 +164,6 @@ class GameWidget(QtGui.QWidget):
             self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
     
     def playerWonCallBack(self, winners, currentGoal):
-        
         print "playerWonCallBack"
         with self.lock:
             winnerUUID = winners[currentGoal]
@@ -176,16 +171,15 @@ class GameWidget(QtGui.QWidget):
             name = self.players[winnerUUID].name
             self.winnerBox.setWindowTitle("Round finished")
             self.winnerBox.setText(name + " has won this round")
-            self.winnerBox.exec_()
+            self.winnerBox.show()
         
     def gameFinishedCallBack(self, winners):
         self.logList.addMessage(self.player, "the game has finished")
         print "gameFinishedCallBack"
-        i = 0
         winnerStr = ""
         with self.lock:
-            for winnerUUID in winners:
-                winnerStr = winnerStr + str(i) + " in a row: " + self.players[winnerUUID].name + "\n"
+            for winner in winners.items():
+                winnerStr = winnerStr + str(winner[0]) + " in a row: " + self.players[winner[1]].name + "\n"
                 
             self.winnerBox.setWindowTitle("Game finished")
             self.winnerBox.setText("The game has finished, the winners are: \n" + winnerStr)
@@ -212,6 +206,5 @@ class GameWidget(QtGui.QWidget):
         self.layoutCreated = True
         
     def closeEvent(self, event):
-        print "Killing game"
         if(self.manyInARow != None):
             self.manyInARow.kill()
