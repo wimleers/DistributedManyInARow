@@ -18,8 +18,10 @@ class Game(threading.Thread):
     """Wrapper around GlobalState that provides mutual exclusion, which is
     necessary for most (if not all) games."""
 
+    MOVE, CHAT, JOIN, WELCOME, LEAVE = range(5)
     RELEASED, WANTED, HELD = range(3)
     MUTEX_MESSAGE_TYPE = 'MUTEX_MESSAGE'
+    HISTORY_MESSAGE_TYPE = 'HISTORY_MESSAGE'
 
 
     def __init__(self, service, player, UUID=None):
@@ -86,8 +88,27 @@ class Game(threading.Thread):
 
     def receiveServiceMessage(self):
         return self.service.receiveServiceMessage()
-
-
+        
+    #
+    # History-related methods
+    #
+        
+    def sendHistory (self, playerUUID, minId):
+        messages = self.globalState.ownMessages(minId, self.globalState.clock.dumps())
+        history = []
+        for key in messages.keys():
+            history.append({'hid': messages[key][0], 'tip': messages[key][1], 'senderUUID':messages[key][2], 'originUUID':messages[key][3], 'ownClockValue':messages[key][4], 'clock':messages[key][5], 'message':messages[key][6]})
+            
+        self.sendServiceMessage({'type' : self.HISTORY_MESSAGE_TYPE, 'targetPlayerUUID' : playerUUID, 'history': history, 'originUUID':self.globalState.senderUUID})
+        
+    def processHistoryMessage(self, playerUUID, message, messageClock):
+        
+        with self.globalState.lock:
+            if message['targetPlayerUUID'] == self.player.UUID:
+                #history contains an array of messages that were sent in the past
+                for m in message['history']:
+                    if m['message']['message']['type'] is self.MOVE or m['message']['message']['type'] is self.CHAT:
+                        self.globalState.waitingRoom[m['clock']] = m
     #
     # Mutex-related methods.
     #

@@ -45,7 +45,9 @@ class GlobalState(threading.Thread):
     sender has a UUID, a VectorClock is used for synchronization and SQLite is
     used for persistent storage.
     """
-
+    
+    KEEP_ALIVE_TYPE = 'KEEP-ALIVE'
+    
     def __init__(self, service, sessionUUID, senderUUID, dbFile="./globalstate.sqlite", peerWaitingTime=30, messageWaitingTime=2):
         # MulticastMessaging subclass.
         if not isinstance(service, Service.OneToManyService):
@@ -55,6 +57,13 @@ class GlobalState(threading.Thread):
         # Identifiers.
         self.sessionUUID = sessionUUID
         self.senderUUID  = senderUUID
+        
+        #The last time the keep-alive message was sent (in seconds)
+        self.keepAliveSentTime = 0
+        #The time to wait between keep-alive messages
+        self.keepAliveTreshold = 1
+        self.keepAliveLeftTime = 5 #the time to wait for a keep-alive message to arrive before we disconnect the player 
+        self.keepAliveMessages = {} # Contains the last time a keep-alive message was received per player
 
         # Message storage.
         self.inbox       = Queue.Queue()
@@ -114,7 +123,7 @@ class GlobalState(threading.Thread):
         with self.lock:
             sqlite3.register_converter("pickle", cPickle.loads)
             sqlite3.register_converter("VectorClock", VectorClock.loads)
-            self._dbCon = sqlite3.connect(self._dbFile, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+            self._dbCon = sqlite3.connect(self._dbFile, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES, check_same_thread=False)
             self._dbCur = self._dbCon.cursor()
             self._dbCur.execute("CREATE TABLE IF NOT EXISTS MessageHistory(\
                                     hid           INTEGER PRIMARY KEY AUTOINCREMENT, \
@@ -185,7 +194,22 @@ class GlobalState(threading.Thread):
         with self.lock:
             return self.inbox.get()
 
-
+    def sendKeepAliveMessage(self):
+        with self.service.lock:
+            self.service.sendServiceMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID})
+            self.keepAliveSentTime = time.clock()
+            
+    def receiveKeepAliveMessage(self, message):
+        with self.lock:
+            self.keepAliveMessages[message['originUUID']] = time.clock()
+        
+    #checks if any players disconnected
+    def checkKeepAlive(self):
+        with self.lock:
+            for key in self.keepAliveMessages.keys():
+                if time.clock() - self.keepAliveMessages[key] > self.keepAliveLeftTime:
+                    self.inbox.put((key, {'type':4}, None))
+    
     def _wrapMessage(self, message):
         """Wrap a message in an envelope to prepare it for sending."""
 
@@ -264,6 +288,11 @@ class GlobalState(threading.Thread):
                             clock = envelope['clock']
                             self.waitingRoom[clock] = envelope
                             # print "\tGlobalstate.run(): moved message to waiting room with clock", clock
+                    if self.service.countReceivedServiceMessages() > 0:
+                        envelope = self.service.receiveServiceMessage()
+                        if envelope['type'] == self.KEEP_ALIVE_TYPE:
+                            self.receiveKeepAliveMessage(envelope)
+                        self.inbox.put((envelope['originUUID'], envelope, None))
 
             # Sending can always happen immediately. The application that uses
             # this module only sends messages if they either don't require
@@ -274,6 +303,9 @@ class GlobalState(threading.Thread):
                     message = self.outbox.get()
                     self._sendMessage(message)
 
+                if time.clock() - self.keepAliveSentTime > self.keepAliveTreshold:
+                    self.sendKeepAliveMessage()
+                    self.checkKeepAlive()
             # If there are incoming messages, attempt to process them. Delayed
             # messages will be waited for, lost messages will be re-requested.
             with self.lock:

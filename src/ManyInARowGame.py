@@ -11,7 +11,6 @@ class OneToManyServiceError(ManyInARowGameError): pass
 
 class ManyInARowGame(Game):
 
-    MOVE, CHAT, JOIN, WELCOME, LEAVE = range(5)
 
     def __init__(self, service, player, UUID,
                  name, description, numRows, numCols, waitTime,
@@ -122,8 +121,8 @@ class ManyInARowGame(Game):
         timer.start()
 
 
-    def getHistory(self, minId=0):
-        return self.getHistory(minId)
+    def sendHistory(self, playerUUID, minId=0):
+        super(ManyInARowGame, self).sendHistory(playerUUID, minId)
 
 
     def mutexAcquiredCallback(self):
@@ -175,10 +174,12 @@ class ManyInARowGame(Game):
         elif type == self.JOIN:
             if playerUUID != self.player.UUID:
                 player = message['player']
-                self.otherPlayers[playerUUID] = player
+                self.otherPlayers[playerUUID] = player                      
+                # Send a HISTORY message containing all the moves this player did                
+                self.sendHistory(playerUUID, 0)
                 # Send a WELCOME message as a reply, to let the player who joined
                 # get to know all players
-                self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})
+                self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})  
             else:
                 player = self.player
             # Notify the GUI.
@@ -217,8 +218,10 @@ class ManyInARowGame(Game):
             # Receive messages and call the appropriate callback.
             with self.lock:
                 if self.countReceivedMessages() > 0:
-                    (senderUUID, message, messageClock) = self.receiveMessage()
-                    if message['type'] == self.MUTEX_MESSAGE_TYPE:
+                    (senderUUID, message, messageClock) = self.receiveMessage()   
+                    if message['type'] == self.HISTORY_MESSAGE_TYPE:
+                        self.processHistoryMessage(senderUUID, message, messageClock)
+                    elif message['type'] == self.MUTEX_MESSAGE_TYPE:
                         self.processMutexMessage(senderUUID, message, messageClock)
                     else:
                         self.messageReceivedCallback(senderUUID, message['type'], message)            
