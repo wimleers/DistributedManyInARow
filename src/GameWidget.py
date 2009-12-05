@@ -44,7 +44,7 @@ class GameWidget(QtGui.QWidget):
                                                     self.chatCallBack,
                                                     self.gameJoinedCallBack,
                                                     self.playerJoinedCallBack, self.playerLeftCallBack,
-                                                    self.moveCallBack, self.enableClicks,
+                                                    self.moveCallBack, self.enableClicks, self.disableClicks,
                                                     self.playerWonCallBack, self.gameFinishedCallBack,
                                                     self.freezeCallback, self.unfreezeCallback)
             if(not self.layoutCreated):
@@ -60,7 +60,7 @@ class GameWidget(QtGui.QWidget):
                                                     self.chatCallBack,
                                                     self.gameJoinedCallBack,
                                                     self.playerJoinedCallBack, self.playerLeftCallBack,
-                                                    self.moveCallBack, self.enableClicks,
+                                                    self.moveCallBack, self.enableClicks, self.disableClicks,
                                                     self.playerWonCallBack, self.gameFinishedCallBack,
                                                     self.freezeCallback, self.unfreezeCallback)
             
@@ -131,9 +131,15 @@ class GameWidget(QtGui.QWidget):
     
     def enableClicks(self):
         print "enableClicks"
-        if(self.scene != None):
-            with self.lock:
+        with self.lock:
+            if(self.scene != None):
                 self.scene.unblock(False)
+                
+    def disableClicks(self):
+        print "disable clicks"
+        with self.lock:
+            if(self.scene != None):
+                self.scene.block(False)
     
     
     def playerJoinedCallBack(self, playerUUID, newPlayer):
