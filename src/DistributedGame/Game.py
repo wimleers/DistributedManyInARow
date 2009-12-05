@@ -18,7 +18,7 @@ class Game(threading.Thread):
     """Wrapper around GlobalState that provides mutual exclusion, which is
     necessary for most (if not all) games."""
 
-    MOVE, CHAT, JOIN, WELCOME, LEAVE = range(5)
+    MOVE, CHAT, JOIN, WELCOME, LEAVE, FREEZE, UNFREEZE = range(7)
     RELEASED, WANTED, HELD = range(3)
     MUTEX_MESSAGE_TYPE = 'MUTEX_MESSAGE'
     HISTORY_MESSAGE_TYPE = 'HISTORY_MESSAGE'

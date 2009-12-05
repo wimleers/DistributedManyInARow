@@ -19,7 +19,8 @@ class ManyInARowGame(Game):
                  guiPlayerJoinedCallback, guiPlayerLeftCallback,
                  guiMoveCallback, guiCanMakeMoveCallback,
                  guiWinnerCallback,
-                 guiFinishedCallback):
+                 guiFinishedCallback, guiFreezeCallback,
+                 guiUnfreezeCallback):
         super(ManyInARowGame, self).__init__(service, player, UUID)
 
         # Callbacks.
@@ -39,6 +40,10 @@ class ManyInARowGame(Game):
             raise InvalidCallbackError, "guiWinnerCallback"
         if not callable(guiFinishedCallback):
             raise InvalidCallbackError, "guiFinishedCallback"
+        if not callable(guiFreezeCallback):
+            raise InvalidCallbackError, "guiFreezeCallback"
+        if not callable(guiUnfreezeCallback):
+            raise InvalidCallbackError, "guiUnfreezeCallback"
         
         self.guiChatCallback         = guiChatCallback
         self.guiJoinedGameCallback   = guiJoinedGameCallback
@@ -48,6 +53,8 @@ class ManyInARowGame(Game):
         self.guiCanMakeMoveCallback  = guiCanMakeMoveCallback
         self.guiWinnerCallback       = guiWinnerCallback
         self.guiFinishedCallback     = guiFinishedCallback
+        self.guiFreezeCallback       = guiFreezeCallback
+        self.guiUnfreezeCallback     = guiUnfreezeCallback
 
         # Game settings
         self.gameName    = name
@@ -119,6 +126,14 @@ class ManyInARowGame(Game):
         self.acquireMutex()
         timer = Timer(self.waitTime, self._guiCanMakeMove)
         timer.start()
+        
+    def freezeGame(self):
+        self.freezeMessage = {'type' : self.FREEZE}
+        self.acquireMutex()
+        
+    def unfreezeGame(self):
+        self.sendMessage({'type' : self.UNFREEZE})
+        self.releaseMutex()
 
 
     def sendHistory(self, playerUUID, minId=0):
@@ -126,11 +141,15 @@ class ManyInARowGame(Game):
 
 
     def mutexAcquiredCallback(self):
-        self.sendMessage(self.moveMessage)
-        self.moveMessage = None
-        self.releaseMutex()
-        if self.canMakeMoveAfterMutexAcquired:
-            self._guiCanMakeMove()
+        if self.moveMessage != None:
+            self.sendMessage(self.moveMessage)
+            self.moveMessage = None
+            self.releaseMutex()
+            if self.canMakeMoveAfterMutexAcquired:
+                self._guiCanMakeMove()
+                
+        elif self.freezeMessage != None:
+            self.sendMessage(self.freezeMessage)
 
 
     def _guiCanMakeMove(self):
@@ -196,6 +215,10 @@ class ManyInARowGame(Game):
             if playerUUID != self.player.UUID:
                 del self.otherPlayers[playerUUID]
                 self.guiPlayerLeftCallback(playerUUID)
+        elif type == self.FREEZE:
+            self.guiFreezeCallback()
+        elif type == self.UNFREEZE:
+            self.guiUnfreezeCallback()
 
 
     def _isWinnerForXInARow(self, col, row, goal):
@@ -219,6 +242,7 @@ class ManyInARowGame(Game):
             with self.lock:
                 if self.countReceivedMessages() > 0:
                     (senderUUID, message, messageClock) = self.receiveMessage()   
+                    print 'received message with type: ' + str(message['type'])
                     if message['type'] == self.HISTORY_MESSAGE_TYPE:
                         self.processHistoryMessage(senderUUID, message, messageClock)
                     elif message['type'] == self.MUTEX_MESSAGE_TYPE:
