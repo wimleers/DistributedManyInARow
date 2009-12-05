@@ -18,6 +18,7 @@ class ManyInARowGame(Game):
                  guiJoinedGameCallback,
                  guiPlayerJoinedCallback, guiPlayerLeftCallback,
                  guiMoveCallback, guiCanMakeMoveCallback,
+                 guiCantMakeMoveCallback,
                  guiWinnerCallback,
                  guiFinishedCallback, guiFreezeCallback,
                  guiUnfreezeCallback):
@@ -36,6 +37,8 @@ class ManyInARowGame(Game):
             raise InvalidCallbackError, "guiMoveCallback"
         if not callable(guiCanMakeMoveCallback):
             raise InvalidCallbackError, "guiCanMakeMoveCallback"
+        if not callable(guiCantMakeMoveCallback):
+            raise InvalidCallbackError, "guiCantMakeMoveCallback"
         if not callable(guiWinnerCallback):
             raise InvalidCallbackError, "guiWinnerCallback"
         if not callable(guiFinishedCallback):
@@ -51,6 +54,7 @@ class ManyInARowGame(Game):
         self.guiPlayerLeftCallback   = guiPlayerLeftCallback
         self.guiMoveCallback         = guiMoveCallback
         self.guiCanMakeMoveCallback  = guiCanMakeMoveCallback
+        self.guiCantMakeMoveCallback  = guiCantMakeMoveCallback
         self.guiWinnerCallback       = guiWinnerCallback
         self.guiFinishedCallback     = guiFinishedCallback
         self.guiFreezeCallback       = guiFreezeCallback
@@ -89,8 +93,6 @@ class ManyInARowGame(Game):
                               game.waitTime, game.startTime)
         game.playing = True
 
-        # Let the GUI know that moves may now be made.
-        game._guiCanMakeMove()
 
         return game
 
@@ -128,6 +130,7 @@ class ManyInARowGame(Game):
         timer.start()
         
     def freezeGame(self):
+        print 'FREEZE GAME OPGEROEPEN'
         self.freezeMessage = {'type' : self.FREEZE}
         self.acquireMutex()
         
@@ -158,6 +161,13 @@ class ManyInARowGame(Game):
             self.canMakeMoveAfterMutexAcquired = False
         else:
             self.canMakeMoveAfterMutexAcquired = True
+        
+    #checks the current number of players, and disables or enables the gui accordingly
+    def checkPlayers(self):
+        if len(self.otherPlayers) > 0:
+            self.guiCanMakeMoveCallback()
+        else:
+            self.guiCantMakeMoveCallback()
         
 
     def sendChatMessage(self, message):
@@ -190,30 +200,34 @@ class ManyInARowGame(Game):
                     self.currentGoal += 1
         elif type == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
-        elif type == self.JOIN:
-            if playerUUID != self.player.UUID:
+        elif type == self.JOIN:            
+            if playerUUID != self.player.UUID:    
                 player = message['player']
                 self.otherPlayers[playerUUID] = player                      
                 # Send a HISTORY message containing all the moves this player did                
                 self.sendHistory(playerUUID, 0)
                 # Send a WELCOME message as a reply, to let the player who joined
                 # get to know all players
-                self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})  
+                self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})              
+                self.checkPlayers()
             else:
                 player = self.player
-            # Notify the GUI.
+            # Notify the GUI.            
             self.guiPlayerJoinedCallback(playerUUID, player)
         elif type == self.WELCOME:
             if playerUUID != self.player.UUID:
                 player = message['I am']
-                self.otherPlayers[playerUUID] = player
+                self.otherPlayers[playerUUID] = player                
+                self.checkPlayers()
             else:
                 player = self.player
             # Notify the GUI.
             self.guiPlayerJoinedCallback(playerUUID, player)
         elif type == self.LEAVE:
             if playerUUID != self.player.UUID:
+                print 'player left!'
                 del self.otherPlayers[playerUUID]
+                self.checkPlayers()
                 self.guiPlayerLeftCallback(playerUUID)
         elif type == self.FREEZE:
             self.guiFreezeCallback()

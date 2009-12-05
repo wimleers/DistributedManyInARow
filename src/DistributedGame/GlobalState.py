@@ -209,6 +209,7 @@ class GlobalState(threading.Thread):
             for key in self.keepAliveMessages.keys():
                 if time.clock() - self.keepAliveMessages[key] > self.keepAliveLeftTime:
                     self.inbox.put((key, {'type':4}, None))
+                    del self.keepAliveMessages[key]
     
     def _wrapMessage(self, message):
         """Wrap a message in an envelope to prepare it for sending."""
