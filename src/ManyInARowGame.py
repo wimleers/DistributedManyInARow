@@ -241,8 +241,7 @@ class ManyInARowGame(Game):
             # Receive messages and call the appropriate callback.
             with self.lock:
                 if self.countReceivedMessages() > 0:
-                    (senderUUID, message, messageClock) = self.receiveMessage()   
-                    print 'received message with type: ' + str(message['type'])
+                    (senderUUID, message, messageClock) = self.receiveMessage()
                     if message['type'] == self.HISTORY_MESSAGE_TYPE:
                         self.processHistoryMessage(senderUUID, message, messageClock)
                     elif message['type'] == self.MUTEX_MESSAGE_TYPE:

@@ -54,7 +54,7 @@ class GraphicsScene(QtGui.QGraphicsScene):
     def unblock(self, freeze):
         self.setForegroundBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
         if(freeze):
-            self.freezeText.show()
+            self.freezeText.hide()
         else:
             self.waitText.hide()
         self.rejectClicks = False

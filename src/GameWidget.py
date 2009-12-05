@@ -94,6 +94,7 @@ class GameWidget(QtGui.QWidget):
         with self.lock:
             self.freezeButton.setDisabled(True)
             self.freezeButton.setText("Unfreeze")
+            self.freezeButton.clicked.disconnect(self.freezeGame)
             self.freezeButton.clicked.connect(self.unfreezeGame)
             
             self.manyInARow.freezeGame()
@@ -103,6 +104,7 @@ class GameWidget(QtGui.QWidget):
         with self.lock:
             self.freezeButton.setDisabled(True)
             self.freezeButton.setText("Freeze")
+            self.freezeButton.clicked.disconnect(self.unfreezeGame)
             self.freezeButton.clicked.connect(self.freezeGame)
             
             self.manyInARow.unfreezeGame()
