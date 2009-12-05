@@ -132,12 +132,14 @@ class GameWidget(QtGui.QWidget):
     def enableClicks(self):
         print "enableClicks"
         with self.lock:
+            self.freezeButton.setEnabled(True)
             if(self.scene != None):
                 self.scene.unblock(False)
                 
     def disableClicks(self):
         print "disable clicks"
         with self.lock:
+            self.freezeButton.setDisabled(True)
             if(self.scene != None):
                 self.scene.block(False)
     
@@ -245,6 +247,7 @@ class GameWidget(QtGui.QWidget):
         self.logList.setMaximumSize(250, 200)
         self.freezeButton = QtGui.QPushButton("Freeze", self)
         self.freezeButton.clicked.connect(self.freezeGame)
+        self.freezeButton.setDisabled(True)
         self.ui.verticalLayout.addWidget(self.logList)
         self.ui.verticalLayout.addWidget(self.freezeButton)
         self.ui.chatEdit.returnPressed.connect(self.sendMessage)
