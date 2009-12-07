@@ -82,7 +82,6 @@ class MainWindow(QtGui.QMainWindow):
     
     def joinGame(self, UUID, name):
         # Is called when the user chooses to join a network game. This functions makes sure a new tab is created and the game joining is intiated. 
-        # Create the new tab
         with self.lock:
             info = self.networkLobby.getGameInfo(UUID)
             self.games.append(GameWidget(GameWidget.JOIN_GAME, info , self.localPlayer, self.manyInARowService, self.tabWidget))
@@ -139,7 +138,7 @@ class MainWindow(QtGui.QMainWindow):
     
     def gameEmptyCallback(self, emptyGameUUID, UUID):
         print "gameEmptyCallback" 
-        #remove the game tab for this game
+        #TODO: remove the game tab for this game
         with self.lock:
             self.networkLobby.removeGame(emptyGameUUID)
     

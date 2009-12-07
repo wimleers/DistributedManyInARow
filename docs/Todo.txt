@@ -1,6 +1,5 @@
 GUI:
-- freeze knop is toegevoegd, moet freeze command nog aanroepen op backend. backend moet daarna ook unfreeze aanroepen om gui terug te enablen
-
+- Normaal af, als alles af is moet er getest worden...
 
 Internals:
 ✓ Game: ondersteuning voor mutex

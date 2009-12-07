@@ -49,10 +49,10 @@ class GameWidget(QtGui.QWidget):
                                                     self.freezeCallback, self.unfreezeCallback)
             if(not self.layoutCreated):
                 self.createLayout()
-            self.manyInARow.start()
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("playerClicked(int)"), self.makeMove)
             QtCore.QObject.connect(self.scene, QtCore.SIGNAL("mouseHoverColumn(int)"), self.makeHoverMove)
             
+            self.manyInARow.start()
             
         if(type == self.JOIN_GAME):
             self.gameUUID = info['UUID']
@@ -66,6 +66,7 @@ class GameWidget(QtGui.QWidget):
             
             self.gameUUID = self.manyInARow.UUID
             self.startTime = self.manyInARow.startTime
+            
             self.manyInARow.start()
         
         
@@ -146,8 +147,6 @@ class GameWidget(QtGui.QWidget):
     
     def playerJoinedCallBack(self, playerUUID, newPlayer):
         print "playerJoinedCallBack"
-        #playerUUID = new player's UUID
-        #newplayer = new players object
         with self.lock:
             if(not self.layoutCreated):
                 self.createLayout()
@@ -162,7 +161,6 @@ class GameWidget(QtGui.QWidget):
                 self.ui.playerList.addItem(newItem)
             
             
-    
     def playerLeftCallBack(self, playerUUID):
         print "playerLeftCallBack"
         with self.lock:
