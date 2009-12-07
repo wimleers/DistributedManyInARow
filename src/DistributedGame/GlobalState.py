@@ -57,6 +57,7 @@ class GlobalState(threading.Thread):
         # Identifiers.
         self.sessionUUID = sessionUUID
         self.senderUUID  = senderUUID
+        print senderUUID
         
         #The last time the keep-alive message was sent (in seconds)
         self.keepAliveSentTime = 0
@@ -171,6 +172,17 @@ class GlobalState(threading.Thread):
         for message in map(MessageRecord._make, self._dbCur.fetchall()):
             messages[message.ownClockValue] = message
         return messages
+        
+    def messagesBySenderUUID(self, senderUUID):
+        """Get a list of messages sent by the person who has senderUUID as UUID
+        """
+
+        messages = {}
+        self._dbCur.execute("SELECT * FROM MessageHistory WHERE senderUUID = \'" + (senderUUID) + "\'")
+        for message in map(MessageRecord._make, self._dbCur.fetchall()):
+            messages[message.ownClockValue] = message
+        return messages
+        
 
 
     ##########################################################################
@@ -217,6 +229,7 @@ class GlobalState(threading.Thread):
         envelope = {}
         # Increment the vector clock for our envelope.
         self.clock.increment(self.senderUUID)
+        print 'sending clock value: ' + str(self.clock) + ' with type: ' + str(message['type'])
         # Add the clock to the envelope.
         envelope['clock'] = copy.deepcopy(self.clock)
         # Add the sender UUUID and the original sender UUID to the envelope
@@ -249,8 +262,11 @@ class GlobalState(threading.Thread):
         """Store a message in the global state and put it in the inbox."""
 
         # Merge the clocks and increment our own component.
+        print 'current clock value: ' + str(self.clock)  + ' with type: ' + str(envelope['message']['type'])
+        print 'other clock value: ' + str(envelope['clock'])
         messageClock = copy.deepcopy(envelope['clock'])
         self.clock.merge(envelope['clock'])
+        print 'merged clock value: ' + str(self.clock)
 
         # Store the message.
         self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, message) VALUES(?, ?, ?, ?, ?)", (time.time(), envelope['senderUUID'], envelope['originUUID'], self.clock.dumps(), cPickle.dumps(envelope)))
@@ -293,7 +309,10 @@ class GlobalState(threading.Thread):
                         envelope = self.service.receiveServiceMessage()
                         if envelope['type'] == self.KEEP_ALIVE_TYPE:
                             self.receiveKeepAliveMessage(envelope)
-                        self.inbox.put((envelope['originUUID'], envelope, None))
+                        if ('originUUID' in envelope.keys()):
+                            self.inbox.put((envelope['originUUID'], envelope, None))
+                        else:
+                            self.inbox.put((None, envelope, None))
 
             # Sending can always happen immediately. The application that uses
             # this module only sends messages if they either don't require

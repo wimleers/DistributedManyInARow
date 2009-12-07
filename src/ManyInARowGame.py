@@ -91,6 +91,7 @@ class ManyInARowGame(Game):
                               game.gameName, game.description,
                               game.numRows, game.numCols,
                               game.waitTime, game.startTime)
+        print 'game UUID: ' + str(game.UUID)
         game.playing = True
 
 
@@ -105,7 +106,7 @@ class ManyInARowGame(Game):
         # confirmation is necessary. Also send the player object because the
         # receiver may not yet have received the Player through the service
         # description via zeroconf.
-        game.sendMessage({'type' : game.JOIN, 'player' : game.player})
+        game.sendServiceMessage({'type' : game.JOIN, 'player' : game.player, 'originUUID' : game.globalState.senderUUID})
 
         # Also let the service know we've joined the game: this is necessary
         # for the game listing.
@@ -130,7 +131,6 @@ class ManyInARowGame(Game):
         timer.start()
         
     def freezeGame(self):
-        print 'FREEZE GAME OPGEROEPEN'
         self.freezeMessage = {'type' : self.FREEZE}
         self.acquireMutex()
         
@@ -180,7 +180,6 @@ class ManyInARowGame(Game):
         they can be recognized by the fact that playerUUID == self.player.UUID
         for those messages.
         """
-
         if type == self.MOVE:
             row = self._makeMove(playerUUID, message['col'])
             self.guiMoveCallback(playerUUID, message['col'], row)
@@ -201,18 +200,15 @@ class ManyInARowGame(Game):
         elif type == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
         elif type == self.JOIN:            
-            if playerUUID != self.player.UUID:    
-                player = message['player']
-                self.otherPlayers[playerUUID] = player                      
-                # Send a HISTORY message containing all the moves this player did                
+            if playerUUID != self.player.UUID:                                  
+                # Send a HISTORY message containing all the moves in the game          
                 self.sendHistory(playerUUID, 0)
-                # Send a WELCOME message as a reply, to let the player who joined
-                # get to know all players
-                self.sendMessage({'type' : self.WELCOME, 'I am' : self.player})              
+                player = message['player']
+                self.otherPlayers[playerUUID] = player                 
                 self.checkPlayers()
             else:
-                player = self.player
             # Notify the GUI.            
+                player = self.player
             self.guiPlayerJoinedCallback(playerUUID, player)
         elif type == self.WELCOME:
             if playerUUID != self.player.UUID:
@@ -251,7 +247,7 @@ class ManyInARowGame(Game):
     
     def _makeAiMove(self, players):
         col = self.field.getBestMove(self.player, players, self.currentGoal)
-        makeMove(col)
+        self.makeMove(col)
 
 
     def run(self):

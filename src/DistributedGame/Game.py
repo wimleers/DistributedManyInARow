@@ -18,7 +18,7 @@ class Game(threading.Thread):
     """Wrapper around GlobalState that provides mutual exclusion, which is
     necessary for most (if not all) games."""
 
-    MOVE, CHAT, JOIN, WELCOME, LEAVE, FREEZE, UNFREEZE = range(7)
+    MOVE, CHAT, JOIN, WELCOME, LEAVE, FREEZE, UNFREEZE, NONE= range(8)
     RELEASED, WANTED, HELD = range(3)
     MUTEX_MESSAGE_TYPE = 'MUTEX_MESSAGE'
     HISTORY_MESSAGE_TYPE = 'HISTORY_MESSAGE'
@@ -55,6 +55,8 @@ class Game(threading.Thread):
         self.alive = True
         self.die   = False
         self.lock = threading.Condition()
+        
+        self.historyMessages = []
 
         super(Game, self).__init__(name="Game-Thread")
 
@@ -79,7 +81,8 @@ class Game(threading.Thread):
     # Service-to-Service messages.
     #
     def sendServiceMessage(self, message):
-        return self.service.sendServiceMessage(message)
+        with self.service.lock:
+            return self.service.sendServiceMessage(message)
 
 
     def countReceivedServiceMessages(self):
@@ -94,21 +97,41 @@ class Game(threading.Thread):
     #
         
     def sendHistory (self, playerUUID, minId):
-        messages = self.globalState.ownMessages(minId, self.globalState.clock.dumps())
-        history = []
-        for key in messages.keys():
-            history.append({'hid': messages[key][0], 'tip': messages[key][1], 'senderUUID':messages[key][2], 'originUUID':messages[key][3], 'ownClockValue':messages[key][4], 'clock':messages[key][5], 'message':messages[key][6]})
-            
-        self.sendServiceMessage({'type' : self.HISTORY_MESSAGE_TYPE, 'targetPlayerUUID' : playerUUID, 'history': history, 'originUUID':self.globalState.senderUUID})
+        with self.lock:
+            with self.globalState.lock:
+                if len (self.otherPlayers) == 0 or self.globalState.senderUUID > max (self.otherPlayers):
+                    messages = self.globalState.ownMessages(minId, self.globalState.clock.dumps())
+                    history = []            
+                    # history contains an array of messages that were sent in the past
+                    for key in messages.keys():
+                        history.append({'hid': messages[key][0], 'tip': messages[key][1], 'senderUUID':messages[key][2], 'originUUID':messages[key][3], 'ownClockValue':messages[key][4], 'clock':messages[key][5], 'message':messages[key][6]})
+                        
+                    # send the a copy of all the players, since the one who joined the game doesn't
+                    # know them yet
+                    for p in self.otherPlayers:
+                        messages = self.globalState.messagesBySenderUUID(p)
+                        for key in messages.keys():
+                            if messages[key][4] != None:
+                                history.append({'hid': messages[key][0], 'tip': messages[key][1], 'senderUUID':messages[key][2], 'originUUID':messages[key][3], 'ownClockValue':messages[key][4], 'clock':messages[key][5], 'message':messages[key][6]})
+                    
+                    players = copy.deepcopy(self.otherPlayers)
+                    players[self.globalState.senderUUID] = self.player
+                    self.sendServiceMessage({'type' : self.HISTORY_MESSAGE_TYPE, 'players' : players, 'targetPlayerUUID' : playerUUID, 'history': history, 'originUUID':self.globalState.senderUUID})
         
     def processHistoryMessage(self, playerUUID, message, messageClock):
-        
-        with self.globalState.lock:
-            if message['targetPlayerUUID'] == self.player.UUID:
-                #history contains an array of messages that were sent in the past
-                for m in message['history']:
-                    if m['message']['message']['type'] is self.MOVE or m['message']['message']['type'] is self.CHAT:
-                        self.globalState.waitingRoom[m['clock']] = m
+        with self.lock:
+            with self.globalState.lock:
+                print 'history received'
+                if message['targetPlayerUUID'] == self.player.UUID:
+                    # add all the players
+                    for playerUUID in message['players']:
+                        self.globalState.inbox.put((playerUUID, {'type': self.WELCOME, 'I am' : message['players'][playerUUID]}, None))
+                    # process all messages and ignore mutex requests
+                    for m in message['history']:
+                        if m['message']['message']['type'] == self.MUTEX_MESSAGE_TYPE:
+                            m['message']['message']['type'] = self.NONE
+                        print 'type:' +  str(m['message']['message']['type'])
+                        self.globalState.waitingRoom[m['clock']] = m['message']
     #
     # Mutex-related methods.
     #
@@ -164,7 +187,12 @@ class Game(threading.Thread):
                 self.agreementReceivedFromPlayers[playerUUID] = True
                 # Do we now have permission from all processes to enter the
                 # critical section? If yes, call mutexAcquiredCallback.
-                if all(self.agreementReceivedFromPlayers):
+                agreements = 0
+                for key in self.agreementReceivedFromPlayers:
+                    if self.agreementReceivedFromPlayers[key]:
+                        agreements += 1
+                if len(self.agreementReceivedFromPlayers) == agreements:
+                    print self.agreementReceivedFromPlayers
                     self.mutex = self.HELD
                     self.mutexAcquiredCallback()
 

@@ -181,6 +181,7 @@ class VectorClock(object):
         self._mergeKeys(other)
         self._binaryOperationCheck(other)
         for id in self.clock.keys():
+            print id
             self.clock[id] = max(self.clock[id], other.clock[id])
 
 

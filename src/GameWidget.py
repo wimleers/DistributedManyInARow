@@ -171,7 +171,8 @@ class GameWidget(QtGui.QWidget):
             if(not self.layoutCreated):
                 self.createLayout()
         
-            self.logList.addMessage(newPlayer, "successfully joined")
+            if playerUUID not in self.players.keys():
+                self.logList.addMessage(newPlayer, "successfully joined")
             self.players[playerUUID] = newPlayer
             self.ui.playerList.clear();
             for currentPlayer in self.players.values():
