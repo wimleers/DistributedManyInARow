@@ -248,6 +248,10 @@ class ManyInARowGame(Game):
     def _makeDummyMove (self, col):
         row = self.field.getRowIndexByColumn(col)
         return row
+    
+    def _makeAiMove(self, players):
+        col = self.field.getBestMove(self.player, players, self.currentGoal)
+        makeMove(col)
 
 
     def run(self):

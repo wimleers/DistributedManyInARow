@@ -42,6 +42,13 @@
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
+         <widget class="QCheckBox" name="aiCheckBox">
+          <property name="text">
+           <string>A.I.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLabel" name="label_5">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">

@@ -19,6 +19,7 @@ class GameWidget(QtGui.QWidget):
         QtGui.QWidget.__init__(self, win_parent)
         
         self.scene = None
+        self.aiActive = False
         
         self.manyInARowService = service
         self.player = player
@@ -35,6 +36,7 @@ class GameWidget(QtGui.QWidget):
         self.layoutCreated = False
         
         self.winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, self)
+        self.errorBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, self)
         
         #ensure threading safety:
         self.lock = threading.Condition()
@@ -73,6 +75,17 @@ class GameWidget(QtGui.QWidget):
     def getGameUUID(self):
         return self.gameUUID
     
+    def aiToggled(self, state):
+        if(state == QtCore.Qt.Checked):
+            print "ai active"
+            self.aiActive = True
+            if(not self.scene.rejectClicks):
+                self.scene.block(False)
+                self.manyInARow._makeAiMove(self.players)
+        else:
+            print "ai inactive"
+            self.aiActive = False
+    
     
     # Functions the user can trigger:
     def sendMessage(self):
@@ -87,8 +100,12 @@ class GameWidget(QtGui.QWidget):
         # Passes the move to the class coordinating the game (ManyInARowGame)
         print "Dropped in column: " + str(column)
         with self.lock:
-            self.scene.block(False)
-        self.manyInARow.makeMove(column)
+            if(self.aiActive):
+                self.errorBox.setWindowTitle("AI is playing")
+                self.errorBox.setText("The A.I. is currently playing, uncheck the checkbox to enable normal game mode.")
+            else:
+                self.scene.block(False)
+                self.manyInARow.makeMove(column)
         
     def freezeGame(self):
         print "Freezing the game"
@@ -132,10 +149,13 @@ class GameWidget(QtGui.QWidget):
     
     def enableClicks(self):
         print "enableClicks"
-        with self.lock:
+        with self.lock:                
             self.freezeButton.setEnabled(True)
             if(self.scene != None):
                 self.scene.unblock(False)
+            
+            if(self.aiActive):
+                self.manyInARow._makeAiMove(self.players)
                 
     def disableClicks(self):
         print "disable clicks"
@@ -228,11 +248,12 @@ class GameWidget(QtGui.QWidget):
     def makeHoverMove(self, column):
         print "hover column: " + str(column)
         with self.lock:
-            row = self.manyInARow._makeDummyMove(column)
-            if(row != -1):
-                #update the gui
-                color = QtGui.QColor(self.player.color[0], self.player.color[1], self.player.color[2])
-                self.scene.makeDummyMove(column, row, color)
+            if(not self.aiActive):
+                row = self.manyInARow._makeDummyMove(column)
+                if(row != -1):
+                    #update the gui
+                    color = QtGui.QColor(self.player.color[0], self.player.color[1], self.player.color[2])
+                    self.scene.makeDummyMove(column, row, color)
                 
         
     
@@ -249,6 +270,7 @@ class GameWidget(QtGui.QWidget):
         self.ui.verticalLayout.addWidget(self.logList)
         self.ui.verticalLayout.addWidget(self.freezeButton)
         self.ui.chatEdit.returnPressed.connect(self.sendMessage)
+        self.ui.aiCheckBox.stateChanged.connect(self.aiToggled)
         self.ui.show()
         self.layoutCreated = True
         

@@ -89,17 +89,17 @@ class Field:
     def undoMove (self, x, y):
         self.values[y][x] = -1
 
-    def getBestMove (self, players, inARow):
+    def getBestMove (self, currentPlayer, players, inARow):
         for i in range (self.cols):
             #check if we can make a winning move
-            y = self.makeMove (i, players.currentPlayer)
+            y = self.makeMove (i, currentPlayer)
             if y != -1 and self.checkWin (i, y, inARow):
                 self.undoMove (i, y)
                 return i
             self.undoMove (i, y)
 
-        for i in range (len(players.players)):
-            if i != players.currentPlayer:
+        for i in len(players):
+            if i != currentPlayer:
                 for j in range (self.cols):
                     #check if another player can make a winning move
                     y = self.makeMove (j, i)
@@ -112,7 +112,7 @@ class Field:
         move = random.randint(0, self.cols-1)
         for i in range (self.cols):
             #check if we can make a winning move
-            y = self.makeMove (i, players.currentPlayer)
+            y = self.makeMove (i, currentPlayer)
             if y != -1 and self.checkNeighbour (i, y):
                 self.undoMove (i, y)
                 return i
