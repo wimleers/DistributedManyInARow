@@ -97,6 +97,7 @@ class Game(threading.Thread):
     #
         
     def sendHistory (self, playerUUID, minId):
+        print self.globalState.clock
         with self.lock:
             with self.globalState.lock:
                 if len (self.otherPlayers) == 0 or self.globalState.senderUUID > max (self.otherPlayers):
@@ -111,9 +112,9 @@ class Game(threading.Thread):
                     for p in self.otherPlayers:
                         messages = self.globalState.messagesBySenderUUID(p)
                         for key in messages.keys():
-                            if messages[key][4] != None:
-                                history.append({'hid': messages[key][0], 'tip': messages[key][1], 'senderUUID':messages[key][2], 'originUUID':messages[key][3], 'ownClockValue':messages[key][4], 'clock':messages[key][5], 'message':messages[key][6]})
+                            history.append({'hid': messages[key][0], 'tip': messages[key][1], 'senderUUID':messages[key][2], 'originUUID':messages[key][3], 'ownClockValue':messages[key][4], 'clock':messages[key][5], 'message':messages[key][6]})
                     
+                    print history
                     players = copy.deepcopy(self.otherPlayers)
                     players[self.globalState.senderUUID] = self.player
                     self.sendServiceMessage({'type' : self.HISTORY_MESSAGE_TYPE, 'players' : players, 'targetPlayerUUID' : playerUUID, 'history': history, 'originUUID':self.globalState.senderUUID})
@@ -123,6 +124,7 @@ class Game(threading.Thread):
             with self.globalState.lock:
                 if message['targetPlayerUUID'] == self.player.UUID:
                     # add all the players
+                    print message
                     for playerUUID in message['players']:
                         self.globalState.inbox.put((playerUUID, {'type': self.WELCOME, 'I am' : message['players'][playerUUID]}, None))
                     # process all messages and ignore mutex requests
@@ -173,7 +175,7 @@ class Game(threading.Thread):
                 # our vector clock with the requester's vector clock because
                 # messages are sent on top of GlobalState, which already
                 # ensures correct order.
-                if self.mutex == self.HELD or (self.mutex == self.WANTED and self.mutexRequestedClock < messageClock and uuid.UUID(self.UUID).int < uuid.UUID(playerUUID).int):
+                if self.mutex == self.HELD or (self.mutex == self.WANTED and self.mutexRequestedClock < messageClock):
                     self.mutexWantedQueue.put(playerUUID)
                 else:
                     # Allow the requester to enter its critical section.
@@ -193,9 +195,7 @@ class Game(threading.Thread):
                 for key in self.agreementReceivedFromPlayers:
                     if self.agreementReceivedFromPlayers[key]:
                         agreements += 1
-                print agreements, self.agreementReceivedFromPlayers
                 if len(self.agreementReceivedFromPlayers) == agreements:
-                    print self.agreementReceivedFromPlayers
                     self.mutex = self.HELD
                     self.mutexAcquiredCallback()
 

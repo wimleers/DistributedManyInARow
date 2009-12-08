@@ -141,6 +141,14 @@ class VectorClock(object):
         self._mergeKeys(other)
         return set(self.clock.keys()) == set(other.clock.keys()) and self._isImmediatelyConcurrentWithHelper(other) and other._isImmediatelyConcurrentWithHelper(self)
 
+    def isAlreadyProcessed (self, other):
+        self._mergeKeys(other)
+        positiveOffsets = 0
+        for id in self.clock.keys():
+            if self.clock[id] >= other.clock[id]:
+                positiveOffsets += 1
+        
+        return (positiveOffsets == len(self.clock.keys()))
 
     def _isImmediatelyConcurrentWithHelper(self, other):
         """Returns True if and only if the other vector clock contains a

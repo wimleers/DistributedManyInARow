@@ -167,9 +167,9 @@ class GlobalState(threading.Thread):
         """
 
         messages = {}
-        self._dbCur.execute("SELECT * FROM MessageHistory WHERE senderUUID = ? AND ownClockValue > ? AND ownClockValue < ?", (self.senderUUID, minClockValue, maxClockValue))
+        self._dbCur.execute("SELECT * FROM MessageHistory WHERE senderUUID = \'" + self.senderUUID + "\'")
         for message in map(MessageRecord._make, self._dbCur.fetchall()):
-            messages[message.ownClockValue] = message
+            messages[message.clock] = message
         return messages
         
     def messagesBySenderUUID(self, senderUUID):
@@ -179,7 +179,7 @@ class GlobalState(threading.Thread):
         messages = {}
         self._dbCur.execute("SELECT * FROM MessageHistory WHERE senderUUID = \'" + (senderUUID) + "\'")
         for message in map(MessageRecord._make, self._dbCur.fetchall()):
-            messages[message.ownClockValue] = message
+            messages[message.clock] = message
         return messages
         
 
@@ -243,6 +243,7 @@ class GlobalState(threading.Thread):
         it on to the service outbox.
         """
 
+        print 'sending clock : ' + str(self.clock) + ' , message type: ' + str(message['type'])
         envelope = self._wrapMessage(message)
 
         # Store the envelope.
@@ -260,9 +261,13 @@ class GlobalState(threading.Thread):
         """Store a message in the global state and put it in the inbox."""
 
         # Merge the clocks and increment our own component.
+        
+        print 'current clock : ' + str(self.clock) + ' , message type: ' + str(envelope['message']['type'])
         messageClock = copy.deepcopy(envelope['clock'])
+        print 'message clock : ' + str(messageClock) + ' , message type: ' + str(envelope['message']['type'])
         self.clock.merge(envelope['clock'])
-
+        print 'merged clock : ' + str(self.clock) + ' , message type: ' + str(envelope['message']['type'])
+        
         # Store the message.
         self._dbCur.execute("INSERT INTO MessageHistory (timestamp, senderUUID, originUUID, clock, message) VALUES(?, ?, ?, ?, ?)", (time.time(), envelope['senderUUID'], envelope['originUUID'], self.clock.dumps(), cPickle.dumps(envelope)))
         self._dbCon.commit()
@@ -337,12 +342,14 @@ class GlobalState(threading.Thread):
                     # of 2 ids with one +1 and the other one -1), then we can
                     # process it. This is necessary to guarantee correct order.
                     lowestClock = sortedClocks[0]
-                    # print "current clock", self.clock
-                    # print "lowest clock", lowestClock
+                    print "current clock", self.clock
+                    print "lowest clock", lowestClock
                     if self.clock.isImmediatelyFollowedBy(lowestClock) or self.clock.isImmediatelyConcurrentWith(lowestClock):
                         self._receiveMessage(self.waitingRoom[lowestClock])
                         del self.waitingRoom[lowestClock]
                         # print "GlobalState.run(): moved message from waiting room to inbox, clock:", lowestClock
+                    elif self.clock.isAlreadyProcessed(lowestClock):
+                        del self.waitingRoom[lowestClock]
 
                     # If the lowest clock didn't qualify to be processed, then
                     # none of the clocks of the messages in the inbox are.
