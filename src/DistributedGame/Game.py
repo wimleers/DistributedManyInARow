@@ -121,7 +121,6 @@ class Game(threading.Thread):
     def processHistoryMessage(self, playerUUID, message, messageClock):
         with self.lock:
             with self.globalState.lock:
-                print 'history received'
                 if message['targetPlayerUUID'] == self.player.UUID:
                     # add all the players
                     for playerUUID in message['players']:
@@ -130,7 +129,6 @@ class Game(threading.Thread):
                     for m in message['history']:
                         if m['message']['message']['type'] == self.MUTEX_MESSAGE_TYPE:
                             m['message']['message']['type'] = self.NONE
-                        print 'type:' +  str(m['message']['message']['type'])
                         self.globalState.waitingRoom[m['clock']] = m['message']
     #
     # Mutex-related methods.
@@ -167,6 +165,8 @@ class Game(threading.Thread):
 
         with self.lock:
             # Mutex acquisition request.
+            
+            print 'mutex request received with action ' + str(message['action'])
             if message['action'] == self.WANTED:
                 # If we're acquiring the mutex or have it, queue this mutex
                 # acquisition request. Note that we don't have to compare
@@ -177,11 +177,13 @@ class Game(threading.Thread):
                     self.mutexWantedQueue.put(playerUUID)
                 else:
                     # Allow the requester to enter its critical section.
-                    self.globalState.sendMessage({
-                        'type'   : self.MUTEX_MESSAGE_TYPE,
-                        'action' : self.RELEASED,
-                        'target' : playerUUID
-                    })
+                    print 'sending mutex released message with target' + str (playerUUID)
+                    with self.globalState.lock:
+                        self.globalState.sendMessage({
+                            'type'   : self.MUTEX_MESSAGE_TYPE,
+                            'action' : self.RELEASED,
+                            'target' : playerUUID
+                        })
             # Mutex acquisition confirmation.
             elif message['action'] == self.RELEASED and message['target'] == self.player.UUID:
                 self.agreementReceivedFromPlayers[playerUUID] = True
@@ -191,6 +193,7 @@ class Game(threading.Thread):
                 for key in self.agreementReceivedFromPlayers:
                     if self.agreementReceivedFromPlayers[key]:
                         agreements += 1
+                print agreements, self.agreementReceivedFromPlayers
                 if len(self.agreementReceivedFromPlayers) == agreements:
                     print self.agreementReceivedFromPlayers
                     self.mutex = self.HELD

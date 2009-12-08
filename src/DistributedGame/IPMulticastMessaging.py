@@ -28,7 +28,7 @@ class IPMulticastMessaging(threading.Thread):
     ANY = "0.0.0.0" # Corresponds to INADDR_ANY.
     MCAST_GRP = '225.0.13.37'
     MCAST_TTL = 1 # 1 for same subnet, 32 for same organization (see http://www.tldp.org/HOWTO/Multicast-HOWTO-2.html)
-    PACKET_SIZE = 150
+    PACKET_SIZE = 64000
     MAX_NUM_FRAGMENTS = 10000
 
     FRAGMENT_ID_SIZE   = 36 + 5 + 5 # UUID (36 characters) + number (5 digits) + total number (5 digits)
