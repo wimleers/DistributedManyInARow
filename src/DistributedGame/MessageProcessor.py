@@ -8,6 +8,7 @@ import sqlite3
 import threading
 import time
 from collections import namedtuple as namedtuple
+import ntplib
 
 # Imports from this module.
 from VectorClock import VectorClock
@@ -65,11 +66,12 @@ class MessageProcessor(threading.Thread):
         self.alive = True
         self.die = False
         self.lock = threading.Condition()
+        
+        
 
         # Other things.
         self._startedWaitingForMessages = None
-        self.clock = VectorClock()
-        self.clock.add(self.senderUUID)
+        self.NTPoffset = 0
 
         # Register this Global State's session UUID with the service as a
         # valid destination.
@@ -107,29 +109,28 @@ class MessageProcessor(threading.Thread):
 
     def sendKeepAliveMessage(self):
         with self.service.lock:
-            self.service.sendServiceMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID})
-            self.keepAliveSentTime = time.clock()
+            self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset})
+            self.keepAliveSentTime = time.time() + self.NTPoffset
             
     def receiveKeepAliveMessage(self, message):
         with self.lock:
-            self.keepAliveMessages[message['originUUID']] = time.clock()
+            self.PlayerRTT[message['originUUID']] = message['timestamp']
+            
         
     #checks if any players disconnected
     def checkKeepAlive(self):
         with self.lock:
             for key in self.keepAliveMessages.keys():
-                if time.clock() - self.keepAliveMessages[key] > self.keepAliveLeftTime:
-                    self.inbox.put((key, {'type':4}, None))
+                if self.keepAliveMessages[key] > self.keepAliveLeftTime:
+                    self.inbox.put(key, {'type':4})
                     del self.keepAliveMessages[key]
     
     def _wrapMessage(self, message):
         """Wrap a message in an envelope to prepare it for sending."""
 
         envelope = {}
-        # Increment the vector clock for our envelope.
-        self.clock.increment(self.senderUUID)
-        # Add the clock to the envelope.
-        envelope['clock'] = copy.deepcopy(self.clock)
+        # Add the timestamp to the envelope.
+        envelope['timestamp'] = time.time() + self.NTPoffset
         # Add the sender UUUID and the original sender UUID to the envelope
         # (which is always ourselves).
         envelope['senderUUID'] = envelope['originUUID'] = self.senderUUID
@@ -139,15 +140,13 @@ class MessageProcessor(threading.Thread):
 
 
     def processMessage(self, envelope):
-        """Store a message in the global state and put it in the inbox."""
+        """Process a message and put it in the inbox if its meant for us"""
 
         # Merge the clocks and increment our own component.
-        print envelope
         if envelope['message']['type'] == self.SERVER_MOVE_TYPE:
             if envelope['message']['target'] == self.senderUUID:
                 with self.lock:
                     self.inbox.put((envelope['originUUID'], envelope['message']))
-                    
         else:    
             # Move the message to the inbox queue, so it can be retrieved.
             with self.lock:
@@ -163,9 +162,22 @@ class MessageProcessor(threading.Thread):
         self._dbCon.commit()
         self.clock = VectorClock()
         self.clock.add(self.senderUUID)
-
+        
+    def getNTPoffset(self):
+        # get the NTP offset of this computers clock
+        try:
+            client = ntplib.NTPClient()
+            response = client.request('europe.pool.ntp.org', version=3)
+            if response.leap != 3:
+                self.NTPoffset = response.offset
+        except:
+            print 'Warning! NTP server could no be reached'
+            pass
+            
+        # print 'NTPoffset is now: ' + str(self.NTPoffset)
 
     def run(self):
+        self.getNTPoffset()
 
         while self.alive:
             # Check if it's time to send liveness messages.
