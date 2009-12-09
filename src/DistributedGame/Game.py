@@ -4,7 +4,6 @@ import threading
 import uuid
 
 from MessageProcessor import MessageProcessor
-from GlobalState import GlobalState
 from Player import Player 
 import Service
 
