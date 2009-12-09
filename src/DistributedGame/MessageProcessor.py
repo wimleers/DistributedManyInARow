@@ -146,13 +146,11 @@ class MessageProcessor(threading.Thread):
         if envelope['message']['type'] == self.SERVER_MOVE_TYPE:
             if envelope['message']['target'] == self.senderUUID:
                 with self.lock:
-                    print 'putting it in inbox'
                     self.inbox.put((envelope['originUUID'], envelope['message']))
                     
         else:    
             # Move the message to the inbox queue, so it can be retrieved.
             with self.lock:
-                print 'putting it in inbox'
                 self.inbox.put((envelope['originUUID'], envelope['message']))
 
 
