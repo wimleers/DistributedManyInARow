@@ -67,7 +67,10 @@ class MessageProcessor(threading.Thread):
         self.die = False
         self.lock = threading.Condition()
         
-        
+        #Keep-alive.
+        self.playerRTT = {}
+        self.playerRTT['max'] = -1
+        self.lastKeepAliveSendTime = 0
 
         # Other things.
         self._startedWaitingForMessages = None
@@ -87,7 +90,6 @@ class MessageProcessor(threading.Thread):
 
     def sendMessage(self, message, sendToSelf = True):
         """Enqueue a message to be sent."""
-        print sendToSelf
         with self.lock:
             # print "\tGlobalState.sendMessage()", message
             envelope = self._wrapMessage(message)
@@ -114,9 +116,20 @@ class MessageProcessor(threading.Thread):
             
     def receiveKeepAliveMessage(self, message):
         with self.lock:
-            self.PlayerRTT[message['originUUID']] = message['timestamp']
+            uuid = message['originUUID']
+            timeDiff = (time.time() + self.NTPoffset) - message['timestamp']
+            rtt = 2 * timeDiff
+            if rtt > self.playerRTT['max']:
+                self.playerRTT['max'] = rtt
             
-        
+            if not 'avg' in self.playerRTT.keys():
+                self.playerRTT['avg'] = rtt
+            else:
+                self.playerRTT['avg'] = (self.playerRTT['avg'] + rtt) / 2
+            
+            self.PlayerRTT[uuid] = (self.PlayerRTT[uuid] + rtt) / 2
+            
+
     #checks if any players disconnected
     def checkKeepAlive(self):
         with self.lock:
@@ -200,6 +213,14 @@ class MessageProcessor(threading.Thread):
                             self.inbox.put((envelope['originUUID'], envelope))
                         else:
                             self.inbox.put((None, envelope))
+                    
+                    if('avg' in self.playerRTT.keys()):
+                        if(self.playerRTT['avg'] > (time.time() - self.lastKeepAliveSendTime)):
+                            self.sendKeepAliveMessage()
+                            self.lastKeepAliveSendTime = time.time()
+                    else:
+                        self.sendKeepAliveMessage()
+                        self.lastKeepAliveSendTime = time.time()
 
             # 20 refreshes per second is plenty.
             time.sleep(0.05)
