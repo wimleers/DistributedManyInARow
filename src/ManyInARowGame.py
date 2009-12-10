@@ -128,10 +128,10 @@ class ManyInARowGame(Game):
     def makeMove(self, col):
         # if we are the host, we don't need to actually send a message to the host via multicast
         if self.messageProcessor.host == self.player.UUID:
-            self.messageProcessor.inbox.put((self.player.UUID, {'type' : self.SERVER_MOVE_TYPE, 'col' : col, 'target' : self.messageProcessor.host}))
+            self.messageProcessor.inbox.put((self.player.UUID, {'type' : self.SERVER_MOVE_TYPE, 'col' : col, 'target' : self.messageProcessor.host,  'timestamp' : time.time() + self.messageProcessor.NTPoffset}))
         # send a move request if we are not the host
         else:
-            self.sendMessage({'type' : self.SERVER_MOVE_TYPE, 'col' : col, 'target' : self.messageProcessor.host}, False)
+            self.sendMessage({'type' : self.SERVER_MOVE_TYPE, 'col' : col, 'target' : self.messageProcessor.host, 'timestamp' : time.time() + self.messageProcessor.NTPoffset}, False)
         timer = Timer(self.waitTime / 1000, self._guiCanMakeMove)
         timer.start()
         
