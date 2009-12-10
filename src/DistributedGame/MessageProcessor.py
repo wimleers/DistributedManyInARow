@@ -36,6 +36,7 @@ class MessageProcessor(threading.Thread):
     
     KEEP_ALIVE_TYPE = 'KEEP-ALIVE'
     SERVER_MOVE_TYPE = 'SERVER-MESSAGE'
+    SERVER_ELECTED_TYPE = 'SERVER-ELECTED'
     
     def __init__(self, service, sessionUUID, senderUUID, peerWaitingTime=30, messageWaitingTime=2):
         # MulticastMessaging subclass.
@@ -46,6 +47,7 @@ class MessageProcessor(threading.Thread):
         # Identifiers.
         self.sessionUUID = sessionUUID
         self.senderUUID  = senderUUID
+        self.players = 1
         
         #The last time the keep-alive message was sent (in seconds)
         #self.keepAliveSentTime = 0
@@ -70,7 +72,14 @@ class MessageProcessor(threading.Thread):
         #Keep-alive.
         self.playerRTT = {}
         self.playerRTT['max'] = -1
-        self.lastKeepAliveSendTime = 0
+        self.lastKeepAliveSendTime = time.time()
+        self.keepAliveSent = False
+        self.receivedAliveMessages = {}
+        
+        # election based variables
+        # the time at which a new host was selected. If we get any new elected messages, we can ignore them
+        # if they happened before this time
+        self.hostElectedTime = 0
 
         # Other things.
         self._startedWaitingForMessages = None
@@ -111,32 +120,73 @@ class MessageProcessor(threading.Thread):
 
     def sendKeepAliveMessage(self):
         with self.service.lock:
-            self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset})
-            self.keepAliveSentTime = time.time() + self.NTPoffset
+            self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}, False)
             
     def receiveKeepAliveMessage(self, message):
         with self.lock:
             uuid = message['originUUID']
             timeDiff = (time.time() + self.NTPoffset) - message['timestamp']
             rtt = 2 * timeDiff
-            if rtt > self.playerRTT['max']:
-                self.playerRTT['max'] = rtt
+            
+            self.receivedAliveMessages[uuid] = message['timestamp']
+            
+            
+            
+            if not uuid in self.playerRTT.keys():
+                self.playerRTT[uuid] = rtt
+            else:
+                self.playerRTT[uuid] = (self.playerRTT[uuid] + rtt) / 2
+            
+            max = 0
+            self.playerRTT['max'] = 0
+            for key in self.playerRTT.keys():
+                if (key != 'max' and key != 'avg'):    
+                    if rtt > max:
+                        max = rtt
+            if max > self.playerRTT['max']:
+                self.playerRTT['max'] = max
             
             if not 'avg' in self.playerRTT.keys():
                 self.playerRTT['avg'] = rtt
             else:
-                self.playerRTT['avg'] = (self.playerRTT['avg'] + rtt) / 2
-            
-            self.PlayerRTT[uuid] = (self.PlayerRTT[uuid] + rtt) / 2
+                self.playerRTT['avg'] = 0
+                avg = 0
+                count = 0
+                for key in self.playerRTT.keys():
+                    if (key != 'max' and key != 'avg'):       
+                        avg += rtt
+                        count += 1
+                avg = avg / count
+                self.playerRTT['avg'] = avg
             
 
     #checks if any players disconnected
     def checkKeepAlive(self):
         with self.lock:
-            for key in self.keepAliveMessages.keys():
-                if self.keepAliveMessages[key] > self.keepAliveLeftTime:
-                    self.inbox.put(key, {'type':4})
-                    del self.keepAliveMessages[key]
+            for key in self.receivedAliveMessages.keys():
+                if  30 * self.playerRTT['max'] + self.receivedAliveMessages[key] < time.time() + self.NTPoffset:
+                    
+                    del self.receivedAliveMessages[key]
+                    del self.playerRTT[key]
+                    
+                    if key == self.host:
+                        if len(self.receivedAliveMessages) < 1 or self.senderUUID > max (self.receivedAliveMessages.keys()):
+                            print 'sending elected message'
+                            electedMessage = {'type' : self.SERVER_ELECTED_TYPE, 'host' : self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}
+                            self.sendMessage(electedMessage)
+                            self.receiveElectedMessage({'message':electedMessage})
+                    self.hostLeftAt = time.time() + self.NTPoffset
+                    self.inbox.put((key, {'type':4}))
+                    
+                    
+    def receiveElectedMessage(self, envelope):
+        if envelope['message']['timestamp'] > self.hostElectedTime:
+            self.hostElectedTime = envelope['message']['timestamp']
+            self.host = envelope['message']['host']
+                  
+    def receiveLeaveMessage(self, envelope):
+        self.receivedAliveMessages[envelope['originUUID']] = 0
+        self.checkKeepAlive()
     
     def _wrapMessage(self, message):
         """Wrap a message in an envelope to prepare it for sending."""
@@ -160,6 +210,13 @@ class MessageProcessor(threading.Thread):
             if envelope['message']['target'] == self.senderUUID:
                 with self.lock:
                     self.inbox.put((envelope['originUUID'], envelope['message']))
+        elif envelope['message']['type'] == self.KEEP_ALIVE_TYPE:
+            self.receiveKeepAliveMessage(envelope)
+        elif envelope['message']['type'] == self.SERVER_ELECTED_TYPE:
+            self.receiveElectedMessage(envelope)
+        #if the message is a LEAVE message
+        elif envelope['message']['type'] == 4:
+            self.receiveLeaveMessage(envelope)
         else:    
             # Move the message to the inbox queue, so it can be retrieved.
             with self.lock:
@@ -184,7 +241,7 @@ class MessageProcessor(threading.Thread):
             if response.leap != 3:
                 self.NTPoffset = response.offset
         except:
-            print 'Warning! NTP server could no be reached'
+            print 'Warning! NTP server could not be reached'
             pass
             
         # print 'NTPoffset is now: ' + str(self.NTPoffset)
@@ -202,23 +259,17 @@ class MessageProcessor(threading.Thread):
                     if self.service.countReceivedMessages(self.sessionUUID) > 0:
                         envelope = self.service.receiveMessage(self.sessionUUID)
                         # Ignore our own messages.
+                        
                         if envelope['senderUUID'] != self.senderUUID:
                             self.processMessage(envelope)
-                            # print "\tGlobalstate.run(): moved message to waiting room with clock", clock
-                    if self.service.countReceivedServiceMessages() > 0:
-                        envelope = self.service.receiveServiceMessage()
-                        if envelope['type'] == self.KEEP_ALIVE_TYPE:
-                            self.receiveKeepAliveMessage(envelope)
-                        if ('originUUID' in envelope.keys()):
-                            self.inbox.put((envelope['originUUID'], envelope))
-                        else:
-                            self.inbox.put((None, envelope))
                     
                     if('avg' in self.playerRTT.keys()):
-                        if(self.playerRTT['avg'] > (time.time() - self.lastKeepAliveSendTime)):
+                        if(float(self.playerRTT['avg']) < 0.1 * float(time.time() - self.lastKeepAliveSendTime)):
                             self.sendKeepAliveMessage()
+                            self.checkKeepAlive()
                             self.lastKeepAliveSendTime = time.time()
-                    else:
+                    elif self.players != 1 and not self.keepAliveSent:
+                        self.keepAliveSent = True
                         self.sendKeepAliveMessage()
                         self.lastKeepAliveSendTime = time.time()
 
