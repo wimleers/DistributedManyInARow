@@ -126,6 +126,8 @@ class MessageProcessor(threading.Thread):
         print 'received keep_alive'
         with self.lock:
             uuid = message['originUUID']
+            print str(time.time() + self.NTPoffset)
+            print message['timestamp']
             timeDiff = (time.time() + self.NTPoffset) - message['timestamp']
             rtt = 2 * timeDiff
             
@@ -274,7 +276,8 @@ class MessageProcessor(threading.Thread):
                             self.sendKeepAliveMessage()
                             self.checkKeepAlive()
                             self.lastKeepAliveSendTime = time.time()
-                    elif self.players != 1 and not self.keepAliveSent:
+                    elif time.time() - self.lastKeepAliveSendTime > 0.5:
+                        print 'sending keepAlive'
                         self.keepAliveSent = True
                         self.sendKeepAliveMessage()
                         self.lastKeepAliveSendTime = time.time()
