@@ -73,7 +73,7 @@ class MessageProcessor(threading.Thread):
         self.playerRTT = {}
         self.playerRTT['max'] = -1
         self.lastKeepAliveSendTime = time.time()
-        self.keepAliveSent = False
+        self.sendAfterFirstKeepAlive = False
         self.receivedAliveMessages = {}
         
         # election based variables
@@ -126,10 +126,9 @@ class MessageProcessor(threading.Thread):
         print 'received keep_alive'
         with self.lock:
             uuid = message['originUUID']
-            print str(time.time() + self.NTPoffset)
-            print message['timestamp']
             timeDiff = (time.time() + self.NTPoffset) - message['timestamp']
             rtt = 2 * timeDiff
+            print rtt
             
             self.receivedAliveMessages[uuid] = message['timestamp']
             
@@ -139,22 +138,28 @@ class MessageProcessor(threading.Thread):
                 self.playerRTT[uuid] = rtt
             else:
                 self.playerRTT[uuid] = (self.playerRTT[uuid] + rtt) / 2
+                
+            print 'rtt: ' + str(rtt)
+            print 'playerRTT: ' + str(self.playerRTT[uuid])
             
             max = 0
-            self.playerRTT['max'] = 0
-            for key in self.playerRTT.keys():
-                if (key != 'max' and key != 'avg'):    
-                    if rtt > max:
-                        max = rtt
-            if max > self.playerRTT['max']:
-                self.playerRTT['max'] = max
+            if not 'avg' in self.playerRTT.keys():
+                self.playerRTT['max'] = rtt
+            else:
+                for key in self.playerRTT.keys():
+                    if (key != 'max' and key != 'avg'):    
+                        if self.playerRTT[key] > max:
+                            max = self.playerRTT[key]
+                if max > self.playerRTT['max']:
+                    self.playerRTT['max'] = (max + self.playerRTT['max'])/2
             
             if not 'avg' in self.playerRTT.keys():
                 self.playerRTT['avg'] = rtt
             else:
-                self.playerRTT['avg'] = 0
+                print 'calculating average'
                 avg = 0
                 count = 0
+                print self.playerRTT
                 for key in self.playerRTT.keys():
                     if (key != 'max' and key != 'avg'):       
                         avg += self.playerRTT[key]
@@ -168,9 +173,9 @@ class MessageProcessor(threading.Thread):
         print 'checking keep-alive'
         with self.lock:
             for key in self.receivedAliveMessages.keys():
-                print str(30 * self.playerRTT['max'] + self.receivedAliveMessages[key])
+                print str(5 * self.playerRTT['max'] + self.receivedAliveMessages[key])
                 print str(time.time() + self.NTPoffset)
-                if  30 * self.playerRTT['max'] + self.receivedAliveMessages[key] < time.time() + self.NTPoffset:
+                if  5 * self.playerRTT['max'] + self.receivedAliveMessages[key] + 1 < time.time() + self.NTPoffset:
                     
                     del self.receivedAliveMessages[key]
                     del self.playerRTT[key]
@@ -270,13 +275,12 @@ class MessageProcessor(threading.Thread):
                             self.processMessage(envelope)
                     
                     if('avg' in self.playerRTT.keys()):
-                        print self.playerRTT['avg']
-                        if(float(self.playerRTT['avg']) < 0.2 * float(time.time() - self.lastKeepAliveSendTime)):
-                            print 'sending keepAlive'
+                        if(float(min(self.playerRTT['avg'], 1)) < float(time.time() - self.lastKeepAliveSendTime)):
+                            print 'sending keepAlive at ' + str(time.time() + self.NTPoffset)
                             self.sendKeepAliveMessage()
                             self.checkKeepAlive()
                             self.lastKeepAliveSendTime = time.time()
-                    elif time.time() - self.lastKeepAliveSendTime > 0.5:
+                    elif time.time() - self.lastKeepAliveSendTime > 1:
                         print 'sending keepAlive'
                         self.keepAliveSent = True
                         self.sendKeepAliveMessage()
