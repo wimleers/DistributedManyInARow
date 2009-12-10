@@ -123,6 +123,7 @@ class MessageProcessor(threading.Thread):
             self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}, False)
             
     def receiveKeepAliveMessage(self, message):
+        print 'received keep_alive'
         with self.lock:
             uuid = message['originUUID']
             timeDiff = (time.time() + self.NTPoffset) - message['timestamp']
@@ -154,7 +155,7 @@ class MessageProcessor(threading.Thread):
                 count = 0
                 for key in self.playerRTT.keys():
                     if (key != 'max' and key != 'avg'):       
-                        avg += rtt
+                        avg += self.playerRTT[key]
                         count += 1
                 avg = avg / count
                 self.playerRTT['avg'] = avg
@@ -162,8 +163,11 @@ class MessageProcessor(threading.Thread):
 
     #checks if any players disconnected
     def checkKeepAlive(self):
+        print 'checking keep-alive'
         with self.lock:
             for key in self.receivedAliveMessages.keys():
+                print str(30 * self.playerRTT['max'] + self.receivedAliveMessages[key])
+                print str(time.time() + self.NTPoffset)
                 if  30 * self.playerRTT['max'] + self.receivedAliveMessages[key] < time.time() + self.NTPoffset:
                     
                     del self.receivedAliveMessages[key]
@@ -264,7 +268,9 @@ class MessageProcessor(threading.Thread):
                             self.processMessage(envelope)
                     
                     if('avg' in self.playerRTT.keys()):
-                        if(float(self.playerRTT['avg']) < 0.1 * float(time.time() - self.lastKeepAliveSendTime)):
+                        print self.playerRTT['avg']
+                        if(float(self.playerRTT['avg']) < 0.2 * float(time.time() - self.lastKeepAliveSendTime)):
+                            print 'sending keepAlive'
                             self.sendKeepAliveMessage()
                             self.checkKeepAlive()
                             self.lastKeepAliveSendTime = time.time()
