@@ -232,11 +232,14 @@ class GameWidget(QtGui.QWidget):
                 
             self.winnerBox.setWindowTitle("Game " + "\'"+self.gameName+"\'" + "finished")
             self.winnerBox.setText("The game has finished, the winners are: \n" + winnerStr)
-            self.winnerBox.exec_()
+            self.winnerBox.show()
             
     def freezeCallback(self):
         print "freezing via callback"
         with self.lock:
+            self.freezeButton.setText("Unfreeze")
+            self.freezeButton.clicked.disconnect(self.freezeGame)
+            self.freezeButton.clicked.connect(self.unfreezeGame)
             self.freezeButton.setEnabled(True)
             self.scene.block(True)
             
@@ -244,6 +247,9 @@ class GameWidget(QtGui.QWidget):
         print "unfreezing via callback"
         with self.lock:
             self.freezeButton.setEnabled(True)
+            self.freezeButton.setText("Freeze")
+            self.freezeButton.clicked.disconnect(self.unfreezeGame)
+            self.freezeButton.clicked.connect(self.freezeGame)
             self.scene.unblock(True)
     
     def makeHoverMove(self, column):
