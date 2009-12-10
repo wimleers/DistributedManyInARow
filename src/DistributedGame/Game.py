@@ -2,6 +2,7 @@ import copy
 import Queue
 import threading
 import uuid
+import time
 
 from MessageProcessor import MessageProcessor
 from Player import Player 
@@ -21,7 +22,7 @@ class Game(threading.Thread):
     RELEASED, WANTED, HELD = range(3)
     MUTEX_MESSAGE_TYPE = 'MUTEX_MESSAGE'
     HISTORY_MESSAGE_TYPE = 'HISTORY_MESSAGE'
-
+    SERVER_MOVE_TYPE = 'SERVER-MESSAGE'
 
     def __init__(self, service, player, UUID=None):
         # The Service must be a OneToManyService subclass.
@@ -80,7 +81,7 @@ class Game(threading.Thread):
             for move in message['history']:
                 self.messageProcessor.inbox.put((message['players'][player].UUID, {'type' : self.MOVE, 'row' : move['row'], 'col' : move['col'], 'player' : move['player']}))
         
-        
+            self.messageProcessor.messageApproval(message)
 
 
     #
@@ -88,6 +89,11 @@ class Game(threading.Thread):
     #
     def sendMessage(self, message, sendToSelf = True):
         print 'Game.sendMesssage:', message
+        # check if we get a reply for moves and joins done by this player,
+        # if we don't get a reply the host has left, and we need to resend our message
+        if message['type'] == self.SERVER_MOVE_TYPE or message['type'] == self.JOIN:
+            message['timestamp'] = time.time() + self.messageProcessor.NTPoffset
+            self.messageProcessor.messagesAwaitingApproval.append(message)
         return self.messageProcessor.sendMessage(message, sendToSelf)
 
 
