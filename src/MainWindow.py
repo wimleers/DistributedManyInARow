@@ -58,6 +58,8 @@ class MainWindow(QtGui.QMainWindow):
         self.leftLayout.addWidget(self.networkLobby)
         
         self.tabWidget = QtGui.QTabWidget(self)
+        self.tabWidget.setTabsClosable(True)
+        self.tabWidget.tabCloseRequested.connect(self.tabCloseClicked)
         
         self.horizontalLayout.addLayout(self.leftLayout, 2)
         self.horizontalLayout.addWidget(self.tabWidget, 15)
@@ -72,6 +74,11 @@ class MainWindow(QtGui.QMainWindow):
         gameMenu.addAction(newGameAct)
         gameMenu.addAction(quitAct)
         self.menuBar().addMenu(gameMenu)
+        
+    def tabCloseClicked(self, tabIndex):
+        gameWidget = self.tabWidget.widget(tabIndex)
+        gameWidget.close()
+        self.tabWidget.removeTab(tabIndex)
         
     def createNewGame(self):
         newGameDialog = NewGameDialog(self)
@@ -181,6 +188,7 @@ class NewGameDialog(QtGui.QDialog):
         self.waitTimeEdit = QtGui.QSpinBox(self)
         self.waitTimeEdit.setMinimum(1)
         self.waitTimeEdit.setMaximum(100000)
+        self.waitTimeEdit.setSingleStep(100)
         self.waitTimeEdit.setValue(1)
         startButton = QtGui.QPushButton("&Start", self)
         startButton.clicked.connect(self.paramsSet)
