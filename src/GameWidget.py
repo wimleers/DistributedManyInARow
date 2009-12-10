@@ -86,26 +86,30 @@ class GameWidget(QtGui.QWidget):
                 playerUUID = event.userData['playerUUID']
                 row = event.userData['row']
                 col = event.userData['col']
-                self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + str(col) + ", " + str(row) + ")")
-                self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
+                player = self.getPlayer(playerUUID)
+                
+                self.logList.addMessage(player, "placed: (column, row) - (" + str(col) + ", " + str(row) + ")")
+                self.scene.makeMove(col, row, QtGui.QColor(player.color[0], player.color[1], player.color[2]))
         
         elif(event.type() == self.PLAYER_WON_EVENT):
             with self.lock:
                 winners = event.userData['winners']
                 currentGoal = event.userData['currentGoal']
                 winnerUUID = winners[currentGoal]
-                name = self.players[winnerUUID].name
-                self.logList.addMessage(self.players[winnerUUID], "has won round " + str(currentGoal))
-                winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Round finished in game:  " + "\'"+self.gameName+"\'", name + " has won this round", QtGui.QMessageBox.Ok, self)
+                player = self.getPlayer(winnerUUID)
+                self.logList.addMessage(player, "has won round " + str(currentGoal))
+                winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Round finished in game:  " + "\'"+self.gameName+"\'", player.name + " has won this round", QtGui.QMessageBox.Ok, self)
                 winnerBox.exec_()
             
         elif(event.type() == self.GAME_FINISHED_EVENT):
             with self.lock:
+                self.scene.block(False)
                 winners = event.userData['winners']
-                self.logList.addMessage(self.player, "the game has finished")
+                self.logList.addMessage(self.player, "The game has finished")
                 winnerStr = ""
                 for winner in winners.items():
-                    winnerStr = winnerStr + str(winner[0]) + " in a row: " + self.players[winner[1]].name + "\n"
+                    player = self.getPlayer(winner[1])
+                    winnerStr = winnerStr + str(winner[0]) + " in a row: " + player.name + "\n"
                 
                 winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Game " + "\'"+self.gameName+"\' " + "finished", "The game has finished, the winners are: \n" + winnerStr, QtGui.QMessageBox.Ok, self)
                 winnerBox.exec_()
@@ -117,6 +121,15 @@ class GameWidget(QtGui.QWidget):
         
     def getGameUUID(self):
         return self.gameUUID
+    
+    def getPlayer(self, playerUUID):
+        player = None
+        if playerUUID in self.players.keys():
+            player = self.players[playerUUID]
+        else:
+            player = Player("Disconnected player", playerUUID)
+            
+        return player
     
     def aiToggled(self, state):
         if(state == QtCore.Qt.Checked):
@@ -241,9 +254,10 @@ class GameWidget(QtGui.QWidget):
     def chatCallBack(self, playerUUID, message):
         print "chatCallBack"
         with self.lock:
-            self.logList.addMessage(self.players[playerUUID], "said: " + message)
-            color = QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2])
-            playerName = self.players[playerUUID].name
+            player = self.getPlayer(playerUUID)
+            self.logList.addMessage(player, "said: " + message)
+            color = QtGui.QColor(player.color[0], player.color[1], player.color[2])
+            playerName = player.name
             newItem = QtGui.QListWidgetItem(playerName + ": " + message, self.ui.messageList)
             newItem.setBackgroundColor(color)
             self.ui.messageList.addItem(newItem)
