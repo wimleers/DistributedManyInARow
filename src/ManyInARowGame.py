@@ -132,7 +132,7 @@ class ManyInARowGame(Game):
         # send a move request if we are not the host
         else:
             self.sendMessage({'type' : self.SERVER_MOVE_TYPE, 'col' : col, 'target' : self.messageProcessor.host}, False)
-        timer = Timer(self.waitTime, self._guiCanMakeMove)
+        timer = Timer(self.waitTime / 1000, self._guiCanMakeMove)
         timer.start()
         
     def freezeGame(self):

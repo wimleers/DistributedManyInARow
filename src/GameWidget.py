@@ -35,8 +35,12 @@ class GameWidget(QtGui.QWidget):
         self.manyInARow = None
         self.layoutCreated = False
         
-        self.winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, self)
         self.errorBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, self)
+        
+        #Custom event types:
+        self.MAKE_MOVE_EVENT = QtCore.QEvent.User + 1
+        self.PLAYER_WON_EVENT = QtCore.QEvent.User + 2
+        self.GAME_FINISHED_EVENT = QtCore.QEvent.User + 3
         
         #ensure threading safety:
         self.lock = threading.Condition()
@@ -70,7 +74,46 @@ class GameWidget(QtGui.QWidget):
             self.startTime = self.manyInARow.startTime
             
             self.manyInARow.start()
+            
+    # Instead of accessing the GUI directly from other threads, we need to provide a clean way to change the GUI.
+    # By using custom events, other trhead can signal the gui that it has to change. The changes will be made in
+    # the main GUI thread
+    
+    def customEvent(self, event):
+        print "received custom event"
+        if(event.type() == self.MAKE_MOVE_EVENT):
+            with self.lock:
+                playerUUID = event.userData['playerUUID']
+                row = event.userData['row']
+                col = event.userData['col']
+                self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + str(col) + ", " + str(row) + ")")
+                self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
         
+        elif(event.type() == self.PLAYER_WON_EVENT):
+            with self.lock:
+                winners = event.userData['winners']
+                currentGoal = event.userData['currentGoal']
+                winnerUUID = winners[currentGoal]
+                name = self.players[winnerUUID].name
+                self.logList.addMessage(self.players[winnerUUID], "has won round " + str(currentGoal))
+                winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Round finished in game:  " + "\'"+self.gameName+"\'", name + " has won this round", QtGui.QMessageBox.Ok, self)
+                winnerBox.exec_()
+            
+        elif(event.type() == self.GAME_FINISHED_EVENT):
+            with self.lock:
+                winners = event.userData['winners']
+                self.logList.addMessage(self.player, "the game has finished")
+                winnerStr = ""
+                for winner in winners.items():
+                    winnerStr = winnerStr + str(winner[0]) + " in a row: " + self.players[winner[1]].name + "\n"
+                
+                winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Game " + "\'"+self.gameName+"\' " + "finished", "The game has finished, the winners are: \n" + winnerStr, QtGui.QMessageBox.Ok, self)
+                winnerBox.exec_()
+                
+        else:
+            print 'unknown event received'
+            return QtCore.QObject.customEvent(event)
+            
         
     def getGameUUID(self):
         return self.gameUUID
@@ -207,32 +250,18 @@ class GameWidget(QtGui.QWidget):
         
     
     def moveCallBack(self, playerUUID, col, row):
-        print "moveCallBack"
-        with self.lock:
-            self.logList.addMessage(self.players[playerUUID], "placed: (column, row) - (" + str(col) + ", " + str(row) + ")")
-            self.scene.makeMove(col, row, QtGui.QColor(self.players[playerUUID].color[0], self.players[playerUUID].color[1], self.players[playerUUID].color[2]))
-    
+        customEvent = CustomEvent(self.MAKE_MOVE_EVENT, {'playerUUID': playerUUID, 'col' : col, 'row': row})
+        QtCore.QCoreApplication.postEvent(self, customEvent)
+            
     def playerWonCallBack(self, winners, currentGoal):
-        print "playerWonCallBack"
-        with self.lock:
-            winnerUUID = winners[currentGoal]
-            self.logList.addMessage(self.players[winnerUUID], "has won round " + str(currentGoal))
-            name = self.players[winnerUUID].name
-            self.winnerBox.setWindowTitle("Round finished in game:  " + "\'"+self.gameName+"\'")
-            self.winnerBox.setText(name + " has won this round")
-            self.winnerBox.show()
+        customEvent = CustomEvent(self.PLAYER_WON_EVENT, {'winners': winners, 'currentGoal': currentGoal})
+        QtCore.QCoreApplication.postEvent(self, customEvent)
+        
         
     def gameFinishedCallBack(self, winners):
-        self.logList.addMessage(self.player, "the game has finished")
-        print "gameFinishedCallBack"
-        winnerStr = ""
-        with self.lock:
-            for winner in winners.items():
-                winnerStr = winnerStr + str(winner[0]) + " in a row: " + self.players[winner[1]].name + "\n"
-                
-            self.winnerBox.setWindowTitle("Game " + "\'"+self.gameName+"\'" + "finished")
-            self.winnerBox.setText("The game has finished, the winners are: \n" + winnerStr)
-            self.winnerBox.show()
+        customEvent = CustomEvent(self.GAME_FINISHED_EVENT, {'winners': winners})
+        QtCore.QCoreApplication.postEvent(self, customEvent)
+        
             
     def freezeCallback(self):
         print "freezing via callback"
@@ -282,5 +311,13 @@ class GameWidget(QtGui.QWidget):
         self.layoutCreated = True
         
     def closeEvent(self, event):
+        print 'closeEvent'
         if(self.manyInARow != None):
             self.manyInARow.kill()
+            
+            
+class CustomEvent(QtCore.QEvent):
+    def __init__(self, type, data):
+        QtCore.QEvent.__init__(self, type)
+        
+        self.userData = data

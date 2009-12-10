@@ -123,24 +123,17 @@ class MessageProcessor(threading.Thread):
             self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}, False)
             
     def receiveKeepAliveMessage(self, message):
-        print 'received keep_alive'
         with self.lock:
             uuid = message['originUUID']
             timeDiff = (time.time() + self.NTPoffset) - message['timestamp']
             rtt = 2 * timeDiff
-            print rtt
             
             self.receivedAliveMessages[uuid] = message['timestamp']
-            
-            
             
             if not uuid in self.playerRTT.keys():
                 self.playerRTT[uuid] = rtt
             else:
                 self.playerRTT[uuid] = (self.playerRTT[uuid] + rtt) / 2
-                
-            print 'rtt: ' + str(rtt)
-            print 'playerRTT: ' + str(self.playerRTT[uuid])
             
             max = 0
             if not 'avg' in self.playerRTT.keys():
@@ -156,10 +149,8 @@ class MessageProcessor(threading.Thread):
             if not 'avg' in self.playerRTT.keys():
                 self.playerRTT['avg'] = rtt
             else:
-                print 'calculating average'
                 avg = 0
                 count = 0
-                print self.playerRTT
                 for key in self.playerRTT.keys():
                     if (key != 'max' and key != 'avg'):       
                         avg += self.playerRTT[key]
@@ -170,11 +161,8 @@ class MessageProcessor(threading.Thread):
 
     #checks if any players disconnected
     def checkKeepAlive(self):
-        print 'checking keep-alive'
         with self.lock:
             for key in self.receivedAliveMessages.keys():
-                print str(5 * self.playerRTT['max'] + self.receivedAliveMessages[key])
-                print str(time.time() + self.NTPoffset)
                 if  5 * self.playerRTT['max'] + self.receivedAliveMessages[key] + 1 < time.time() + self.NTPoffset:
                     
                     del self.receivedAliveMessages[key]
@@ -276,12 +264,10 @@ class MessageProcessor(threading.Thread):
                     
                     if('avg' in self.playerRTT.keys()):
                         if(float(min(self.playerRTT['avg'], 1)) < float(time.time() - self.lastKeepAliveSendTime)):
-                            print 'sending keepAlive at ' + str(time.time() + self.NTPoffset)
                             self.sendKeepAliveMessage()
                             self.checkKeepAlive()
                             self.lastKeepAliveSendTime = time.time()
                     elif time.time() - self.lastKeepAliveSendTime > 1:
-                        print 'sending keepAlive'
                         self.keepAliveSent = True
                         self.sendKeepAliveMessage()
                         self.lastKeepAliveSendTime = time.time()
@@ -296,7 +282,7 @@ class MessageProcessor(threading.Thread):
         # while self.outbox.qsize() > 0:
         #     if 
         with self.lock:
-            self.die = True
+            self._commitSuicide()
 
 
     def _commitSuicide(self):

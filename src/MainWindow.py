@@ -100,7 +100,7 @@ class MainWindow(QtGui.QMainWindow):
             self.close()
     
     def serviceUnregisteredCallback(self, serviceName, serviceType, port):
-        print "serviceUnregisteredCallback" 
+        print "serviceUnregisteredCallback"
         pass
     
     def peerServiceDiscoveredCallback(self, serviceName, interfaceIndex, ip, port):
@@ -167,7 +167,7 @@ class NewGameDialog(QtGui.QDialog):
         label3 = QtGui.QLabel("Comment: ", self)
         label4 = QtGui.QLabel("# Rows: ", self)
         label5 = QtGui.QLabel("# Cols: ", self)
-        label6 = QtGui.QLabel("Time between moves (secs)", self)
+        label6 = QtGui.QLabel("Time between moves (msecs)", self)
         self.gameEdit = QtGui.QLineEdit("testgame",self)
         self.commentEdit = QtGui.QLineEdit("testcomment", self)
         self.numRowEdit = QtGui.QSpinBox(self)
@@ -180,7 +180,7 @@ class NewGameDialog(QtGui.QDialog):
         self.numColEdit.setValue(5)
         self.waitTimeEdit = QtGui.QSpinBox(self)
         self.waitTimeEdit.setMinimum(1)
-        self.waitTimeEdit.setMaximum(100)
+        self.waitTimeEdit.setMaximum(100000)
         self.waitTimeEdit.setValue(1)
         startButton = QtGui.QPushButton("&Start", self)
         startButton.clicked.connect(self.paramsSet)
