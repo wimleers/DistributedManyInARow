@@ -15,9 +15,15 @@ from VectorClock import VectorClock
 import Service
 
 
+class GlobalStateError(Exception): pass
 class ClockError(GlobalStateError): pass
 class MessageError(GlobalStateError): pass
 class OneToManyServiceError(GlobalStateError): pass
+
+
+# TODO: support to detect crashed processes (send a message every peerWaitingTime time and require answer within peerWaitingTime, if not: process crashed)
+# TODO: support to request lost messages (if missing message still not arrived after messageWaitingTime, send this request)
+# TODO: add index on clock, if it makes a difference
 
 
 
@@ -28,12 +34,9 @@ class MessageProcessor(threading.Thread):
         leaving
     """
     
-    MOVE, CHAT, JOIN, WELCOME, LEAVE, FREEZE, UNFREEZE, NONE= range(8)
-    HISTORY_MESSAGE_TYPE = 'HISTORY_MESSAGE'
     KEEP_ALIVE_TYPE = 'KEEP-ALIVE'
     SERVER_MOVE_TYPE = 'SERVER-MESSAGE'
     SERVER_ELECTED_TYPE = 'SERVER-ELECTED'
-    SERVER_RESPONSE_TYPE = 'SERVER-RESPONSE'
     
     def __init__(self, service, sessionUUID, senderUUID, peerWaitingTime=30, messageWaitingTime=2):
         # MulticastMessaging subclass.
@@ -77,10 +80,6 @@ class MessageProcessor(threading.Thread):
         # the time at which a new host was selected. If we get any new elected messages, we can ignore them
         # if they happened before this time
         self.hostElectedTime = 0
-        # list of the moves and joins we sent out, and haven't been replied to yet
-        # if we don't get a reply in 5 roundtrip times, the host has left, and the 
-        # message wasn't delivered
-        self.messagesAwaitingApproval = []
 
         # Other things.
         self._startedWaitingForMessages = None
@@ -121,28 +120,23 @@ class MessageProcessor(threading.Thread):
 
     def sendKeepAliveMessage(self):
         with self.service.lock:
-            # send a keepalive message which contains the NTP time at which it was sent, so we can calculate
-            # Roundtrip time, and see if a player leaves the game
             self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}, False)
             
     def receiveKeepAliveMessage(self, message):
         with self.lock:
             uuid = message['originUUID']
-            #calculate the time difference between the time the message was sent and received
             timeDiff = (time.time() + self.NTPoffset) - message['timestamp']
-            #calculate the roundtrip time
             rtt = 2 * timeDiff
+            
             self.receivedAliveMessages[uuid] = message['timestamp']
             
             if not uuid in self.playerRTT.keys():
                 self.playerRTT[uuid] = rtt
             else:
-                # calculate the average between the previous rtt for this player, and the current one
                 self.playerRTT[uuid] = (self.playerRTT[uuid] + rtt) / 2
-
+            
             max = 0
-            #calculate the maximum of all the roundtrip times
-            if not 'max' in self.playerRTT.keys():
+            if not 'avg' in self.playerRTT.keys():
                 self.playerRTT['max'] = rtt
             else:
                 for key in self.playerRTT.keys():
@@ -152,7 +146,6 @@ class MessageProcessor(threading.Thread):
                 if max > self.playerRTT['max']:
                     self.playerRTT['max'] = (max + self.playerRTT['max'])/2
             
-            #calculate the average roundtrip time
             if not 'avg' in self.playerRTT.keys():
                 self.playerRTT['avg'] = rtt
             else:
@@ -170,26 +163,22 @@ class MessageProcessor(threading.Thread):
     def checkKeepAlive(self):
         with self.lock:
             for key in self.receivedAliveMessages.keys():
-                #a player has left if he hasn't send a message in 5 roundtrip times
                 if  5 * self.playerRTT['max'] + self.receivedAliveMessages[key] + 1 < time.time() + self.NTPoffset:
                     
                     del self.receivedAliveMessages[key]
                     del self.playerRTT[key]
                     
-                    # if the player who left was the host, we have to determine the new host
                     if key == self.host:
-                        # this player becomes the host if he has the highest UUID of all players
                         if len(self.receivedAliveMessages) < 1 or self.senderUUID > max (self.receivedAliveMessages.keys()):
+                            print 'sending elected message'
                             electedMessage = {'type' : self.SERVER_ELECTED_TYPE, 'host' : self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}
                             self.sendMessage(electedMessage)
                             self.receiveElectedMessage({'message':electedMessage})
-                    
                     self.hostLeftAt = time.time() + self.NTPoffset
                     self.inbox.put((key, {'type':4}))
                     
                     
     def receiveElectedMessage(self, envelope):
-        # if a new host was elected, make sure that host was elected after the current host was
         if envelope['message']['timestamp'] > self.hostElectedTime:
             self.hostElectedTime = envelope['message']['timestamp']
             self.host = envelope['message']['host']
@@ -210,58 +199,18 @@ class MessageProcessor(threading.Thread):
         # Store the message in the envelope.
         envelope['message'] = message
         return envelope
-        
-        
-    
-    def messageApproval(self, message):
-        """ Approves a message sent by this user """
-        
-        if message['target'] == self.senderUUID:
-            # If we received a history message, it means we have correctly joined the game
-            if message['type'] == self.HISTORY_MESSAGE_TYPE:
-                for m in self.messagesAwaitingApproval:
-                    # Remove the join message
-                    if m['type'] == self.JOIN:
-                        self.messagesAwaitingApproval.remove(m)
-            # If we received a server response message, it means the move we sent was processed
-            if message['type'] == self.SERVER_RESPONSE_TYPE:
-                for m in self.messagesAwaitingApproval:
-                    # Delete the move message
-                    if m['type'] == self.SERVER_MOVE_TYPE and m['col'] == message['col']:
-                        self.messagesAwaitingApproval.remove(m)
-                        
-                        
-    def checkApproval(self):
-        """ Check if a message sent by this user was approved and sends it again if it timed out """
-        for m in self.messagesAwaitingApproval:
-            # wait till a new host was elected before sending the message again
-            if m['timestamp'] < self.hostElectedTime:
-                # a message times out if it wasn't approved after 5 roundtrip times
-                if  5 * self.playerRTT['max'] + m['timestamp'] + 1 < time.time() + self.NTPoffset:
-                    # send the message again
-                    self.sendMessage(m)
-                    self.messagesAwaitingApproval.remove(m)
-                    if self.senderUUID != self.host:
-                        m['timestamp'] = time.time() + self.NTPoffset
-                        self.messagesAwaitingApproval.append(m)
+
 
     def processMessage(self, envelope):
         """Process a message and put it in the inbox if its meant for us"""
 
-        # If the message was a request to make a move, do the move, and let the player who
-        # did the move know his message was processed
+        # Merge the clocks and increment our own component.
         if envelope['message']['type'] == self.SERVER_MOVE_TYPE:
             if envelope['message']['target'] == self.senderUUID:
                 with self.lock:
-                    self.sendMessage({'type' : self.SERVER_RESPONSE_TYPE, 'col' : envelope['message']['col'], 'target' : envelope['originUUID']})
                     self.inbox.put((envelope['originUUID'], envelope['message']))
-        # If the message was an approval of a message sent by this user, approve that message
-        elif envelope['message']['type'] == self.SERVER_RESPONSE_TYPE:
-            self.messageApproval(envelope['message'])
-        # Process a keep-alive message
         elif envelope['message']['type'] == self.KEEP_ALIVE_TYPE:
             self.receiveKeepAliveMessage(envelope)
-        # Process an elected message
         elif envelope['message']['type'] == self.SERVER_ELECTED_TYPE:
             self.receiveElectedMessage(envelope)
         #if the message is a LEAVE message
@@ -294,6 +243,7 @@ class MessageProcessor(threading.Thread):
             print 'Warning! NTP server could not be reached'
             pass
             
+        # print 'NTPoffset is now: ' + str(self.NTPoffset)
 
     def run(self):
         self.getNTPoffset()
@@ -312,14 +262,10 @@ class MessageProcessor(threading.Thread):
                         if envelope['senderUUID'] != self.senderUUID:
                             self.processMessage(envelope)
                     
-                    # if there are other players, send keepalive messages with an interval suitable
-                    # to their roundtrip time
                     if('avg' in self.playerRTT.keys()):
-                        if(max(min(self.playerRTT['avg'], 1), 0.2) < float(time.time() - self.lastKeepAliveSendTime)):
+                        if(float(min(self.playerRTT['avg'], 1)) < float(time.time() - self.lastKeepAliveSendTime)):
                             self.sendKeepAliveMessage()
                             self.checkKeepAlive()
-                            # check if move and join requests were received
-                            self.checkApproval()
                             self.lastKeepAliveSendTime = time.time()
                     elif time.time() - self.lastKeepAliveSendTime > 1:
                         self.keepAliveSent = True
