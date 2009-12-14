@@ -36,6 +36,8 @@ class GraphicsScene(QtGui.QGraphicsScene):
         midx = (sceneSize.width() / 2) - (self.waitText.boundingRect().width() / 2)
         midy = (sceneSize.height() / 2) - (self.waitText.boundingRect().height() / 2)
         self.waitText.setPos(midx, midy)
+        midx = (sceneSize.width() / 2) - (self.freezeText.boundingRect().width() / 2)
+        midy = (sceneSize.height() / 2) - (self.freezeText.boundingRect().height() / 2)
         self.freezeText.setPos(midx, midy)
         self.waitText.hide()
         self.freezeText.hide()
@@ -52,6 +54,9 @@ class GraphicsScene(QtGui.QGraphicsScene):
         self.rejectClicks = True
     
     def unblock(self, freeze):
+        if(self.freezeText.isVisible() and not freeze):
+            self.waitText.hide()
+            return
         self.setForegroundBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
         if(freeze):
             self.freezeText.hide()
