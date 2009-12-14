@@ -203,14 +203,17 @@ class MessageProcessor(threading.Thread):
             self.host = envelope['message']['host']
                   
     def receiveLeaveMessage(self, envelope):            
-        self.inbox.put((envelope['originUUID'], {'type':4}))
-        # if we can't use ntp, we can't rely on the keep-alive messages
-        # to pick a new host, so manually select a new host
+        players = copy.deepcopy(self.players)
+        del players[envelope['originUUID']]
+        
         if not self.useNTP and self.host != None and envelope['originUUID'] == self.host:
-            if len(self.players) < 1 or self.senderUUID > max (self.players.keys()):
+            if len(self.players) == 1 or self.senderUUID > max (players.keys()):
                 electedMessage = {'type' : self.SERVER_ELECTED_TYPE, 'host' : self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}
                 self.sendMessage(electedMessage)
                 self.receiveElectedMessage({'message':electedMessage})
+        self.inbox.put((envelope['originUUID'], {'type':4}))
+        # if we can't use ntp, we can't rely on the keep-alive messages
+        # to pick a new host, so manually select a new host
     
     def _wrapMessage(self, message):
         """Wrap a message in an envelope to prepare it for sending."""
