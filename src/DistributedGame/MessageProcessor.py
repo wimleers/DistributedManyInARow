@@ -50,7 +50,7 @@ class MessageProcessor(threading.Thread):
         # Identifiers.
         self.sessionUUID = sessionUUID
         self.senderUUID  = senderUUID
-        self.players = 1
+        self.players = None
         
         #The last time the keep-alive message was sent (in seconds)
         #self.keepAliveSentTime = 0
@@ -73,6 +73,7 @@ class MessageProcessor(threading.Thread):
         self.lock = threading.Condition()
         
         #Keep-alive.
+        
         self.playerRTT = {}
         self.playerRTT['max'] = -1
         self.lastKeepAliveSendTime = time.time()
@@ -203,6 +204,13 @@ class MessageProcessor(threading.Thread):
                   
     def receiveLeaveMessage(self, envelope):            
         self.inbox.put((envelope['originUUID'], {'type':4}))
+        # if we can't use ntp, we can't rely on the keep-alive messages
+        # to pick a new host, so manually select a new host
+        if not self.useNTP and self.host != None and envelope['originUUID'] == self.host:
+            if len(self.players) < 1 or self.senderUUID > max (self.players.keys()):
+                electedMessage = {'type' : self.SERVER_ELECTED_TYPE, 'host' : self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}
+                self.sendMessage(electedMessage)
+                self.receiveElectedMessage({'message':electedMessage})
     
     def _wrapMessage(self, message):
         """Wrap a message in an envelope to prepare it for sending."""

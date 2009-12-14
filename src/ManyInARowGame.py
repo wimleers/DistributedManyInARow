@@ -212,35 +212,35 @@ class ManyInARowGame(Game):
                     self.currentGoal += 1
         elif type == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
-        elif type == self.JOIN:            
-            self.messageProcessor.players += 1
+        elif type == self.JOIN:              
             if playerUUID != self.player.UUID:                                  
                 # Send a HISTORY message containing all the moves in the game          
                 self.sendHistory(playerUUID, 0)
                 player = message['player']
                 self.otherPlayers[playerUUID] = player                 
+                self.messageProcessor.players = self.otherPlayers
                 self.checkPlayers()
             else:
             # Notify the GUI.            
                 player = self.player
             self.guiPlayerJoinedCallback(playerUUID, player)
         elif type == self.WELCOME:
-            self.messageProcessor.players += 1
             print 'welcome message!'
             if playerUUID != self.player.UUID:
                 player = message['I am']
                 print player
-                self.otherPlayers[playerUUID] = player                
+                self.otherPlayers[playerUUID] = player  
+                self.messageProcessor.players = self.otherPlayers
                 self.checkPlayers()
             else:
                 player = self.player
             # Notify the GUI.
             self.guiPlayerJoinedCallback(playerUUID, player)
         elif type == self.LEAVE:
-            self.messageProcessor.players -= 1
             if playerUUID != self.player.UUID:
                 if playerUUID in self.otherPlayers:
                     del self.otherPlayers[playerUUID]
+                    self.messageProcessor.players = self.otherPlayers
                     self.checkPlayers()
                     self.guiPlayerLeftCallback(playerUUID)
         elif type == self.FREEZE:
