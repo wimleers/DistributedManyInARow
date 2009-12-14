@@ -201,9 +201,8 @@ class MessageProcessor(threading.Thread):
             self.hostElectedTime = envelope['message']['timestamp']
             self.host = envelope['message']['host']
                   
-    def receiveLeaveMessage(self, envelope):
-        self.receivedAliveMessages[envelope['originUUID']] = 0
-        self.checkKeepAlive()
+    def receiveLeaveMessage(self, envelope):            
+        self.inbox.put((envelope['originUUID'], {'type':4}))
     
     def _wrapMessage(self, message):
         """Wrap a message in an envelope to prepare it for sending."""

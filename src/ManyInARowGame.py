@@ -155,7 +155,7 @@ class ManyInARowGame(Game):
         
     #checks the current number of players, and disables or enables the gui accordingly
     def checkPlayers(self):
-        if len(self.otherPlayers) > 0:
+        if len(self.otherPlayers) > 0 and not self.finished:
             self.guiCanMakeMoveCallback()
         else:
             self.guiCantMakeMoveCallback()
