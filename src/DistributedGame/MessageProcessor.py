@@ -80,6 +80,7 @@ class MessageProcessor(threading.Thread):
         self.receivedAliveMessages = {}
         
         # election based variables
+        self.host = None
         # the time at which a new host was selected. If we get any new elected messages, we can ignore them
         # if they happened before this time
         self.hostElectedTime = 0
@@ -184,7 +185,7 @@ class MessageProcessor(threading.Thread):
                     del self.playerRTT[key]
                     
                     # if the player who left was the host, we have to determine the new host
-                    if key == self.host:
+                    if self.host != None and key == self.host:
                         # this player becomes the host if he has the highest UUID of all players
                         if len(self.receivedAliveMessages) < 1 or self.senderUUID > max (self.receivedAliveMessages.keys()):
                             electedMessage = {'type' : self.SERVER_ELECTED_TYPE, 'host' : self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}
@@ -294,8 +295,10 @@ class MessageProcessor(threading.Thread):
             response = client.request('europe.pool.ntp.org', version=3)
             if response.leap != 3:
                 self.NTPoffset = response.offset
+            self.useNTP = True
         except:
             print 'Warning! NTP server could not be reached'
+            self.useNTP = False
             pass
             
         # print 'NTPoffset is now: ' + str(self.NTPoffset)
@@ -318,14 +321,14 @@ class MessageProcessor(threading.Thread):
                             self.processMessage(envelope)
                     # If there are other players, send keepalive messages with an interval suitable
                     # to their roundtrip time
-                    if('avg' in self.playerRTT.keys()):
+                    if self.useNTP and ('avg' in self.playerRTT.keys()):
                         if(float(min(self.playerRTT['avg'], 1)) < float(time.time() - self.lastKeepAliveSendTime)):
                             self.sendKeepAliveMessage()
                             self.checkKeepAlive()
                             # check if move and join requests were received
                             self.checkApproval()
                             self.lastKeepAliveSendTime = time.time()
-                    elif time.time() - self.lastKeepAliveSendTime > 1:
+                    elif self.useNTP and time.time() - self.lastKeepAliveSendTime > 1:
                         self.keepAliveSent = True
                         self.sendKeepAliveMessage()
                         self.lastKeepAliveSendTime = time.time()
