@@ -281,7 +281,8 @@ class GameWidget(QtGui.QWidget):
         print "freezing via callback"
         with self.lock:
             self.freezeButton.setText("Unfreeze")
-            self.freezeButton.clicked.disconnect(self.freezeGame)
+            QtCore.QObject.disconnect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.freezeGame)
+            #self.freezeButton.clicked.disconnect(self.freezeGame)
             self.freezeButton.clicked.connect(self.unfreezeGame)
             self.freezeButton.setEnabled(True)
             self.scene.block(True)
@@ -291,7 +292,8 @@ class GameWidget(QtGui.QWidget):
         with self.lock:
             self.freezeButton.setEnabled(True)
             self.freezeButton.setText("Freeze")
-            self.freezeButton.clicked.disconnect(self.unfreezeGame)
+            QtCore.QObject.disconnect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.unfreezeGame)
+            #self.freezeButton.clicked.disconnect(self.unfreezeGame)
             self.freezeButton.clicked.connect(self.freezeGame)
             self.scene.unblock(True)
     
