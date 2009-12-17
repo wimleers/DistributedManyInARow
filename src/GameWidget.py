@@ -168,8 +168,6 @@ class GameWidget(QtGui.QWidget):
         with self.lock:
             self.freezeButton.setDisabled(True)
             self.freezeButton.setText("Unfreeze")
-            self.freezeButton.clicked.disconnect(self.freezeGame)
-            self.freezeButton.clicked.connect(self.unfreezeGame)
             
             self.manyInARow.freezeGame()
         
@@ -178,8 +176,6 @@ class GameWidget(QtGui.QWidget):
         with self.lock:
             self.freezeButton.setDisabled(True)
             self.freezeButton.setText("Freeze")
-            self.freezeButton.clicked.disconnect(self.unfreezeGame)
-            self.freezeButton.clicked.connect(self.freezeGame)
             
             self.manyInARow.unfreezeGame()
     
@@ -283,7 +279,7 @@ class GameWidget(QtGui.QWidget):
             self.freezeButton.setText("Unfreeze")
             QtCore.QObject.disconnect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.freezeGame)
             #self.freezeButton.clicked.disconnect(self.freezeGame)
-            self.freezeButton.clicked.connect(self.unfreezeGame)
+            QtCore.QObject.connect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.unfreezeGame)
             self.freezeButton.setEnabled(True)
             self.scene.block(True)
             
@@ -294,7 +290,7 @@ class GameWidget(QtGui.QWidget):
             self.freezeButton.setText("Freeze")
             QtCore.QObject.disconnect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.unfreezeGame)
             #self.freezeButton.clicked.disconnect(self.unfreezeGame)
-            self.freezeButton.clicked.connect(self.freezeGame)
+            QtCore.QObject.connect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.freezeGame)
             self.scene.unblock(True)
     
     def makeHoverMove(self, column):
@@ -317,7 +313,7 @@ class GameWidget(QtGui.QWidget):
         self.logList = LogWidget(self)
         self.logList.setMaximumSize(250, 200)
         self.freezeButton = QtGui.QPushButton("Freeze", self)
-        self.freezeButton.clicked.connect(self.freezeGame)
+        QtCore.QObject.connect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.freezeGame)
         self.freezeButton.setDisabled(True)
         self.ui.verticalLayout.addWidget(self.logList)
         self.ui.verticalLayout.addWidget(self.freezeButton)
