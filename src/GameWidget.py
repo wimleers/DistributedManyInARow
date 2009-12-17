@@ -35,6 +35,9 @@ class GameWidget(QtGui.QWidget):
         self.manyInARow = None
         self.layoutCreated = False
         
+        self.aiTimer = QtCore.QTimer()
+        self.aiTimer.timeout.connect(self.aiMakeMove)
+        self.aiTimer.setInterval(1000)
         self.errorBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "0", "0", QtGui.QMessageBox.Ok, self)
         
         #Custom event types:
@@ -98,7 +101,7 @@ class GameWidget(QtGui.QWidget):
                 winnerUUID = winners[currentGoal]
                 player = self.getPlayer(winnerUUID)
                 self.logList.addMessage(player, "has won round " + str(currentGoal))
-                winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Round finished in game:  " + "\'"+self.gameName+"\'", player.name + " has won this round", QtGui.QMessageBox.Ok, self)
+                #winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Round finished in game:  " + "\'"+self.gameName+"\'", player.name + " has won this round", QtGui.QMessageBox.Ok, self)
                 winnerBox.exec_()
             
         elif(event.type() == self.GAME_FINISHED_EVENT):
@@ -107,6 +110,7 @@ class GameWidget(QtGui.QWidget):
                 winners = event.userData['winners']
                 self.logList.addMessage(self.player, "The game has finished")
                 winnerStr = ""
+                self.aiTimer.stop()
                 for winner in winners.items():
                     player = self.getPlayer(winner[1])
                     winnerStr = winnerStr + str(winner[0]) + " in a row: " + player.name + "\n"
@@ -135,12 +139,11 @@ class GameWidget(QtGui.QWidget):
         if(state == QtCore.Qt.Checked):
             print "ai active"
             self.aiActive = True
-            if(not self.scene.rejectClicks):
-                self.scene.block(False)
-                self.manyInARow._makeAiMove(self.players)
+            self.aiTimer.start()
         else:
             print "ai inactive"
             self.aiActive = False
+            self.aiTimer.stop()
     
     
     # Functions the user can trigger:
@@ -180,6 +183,11 @@ class GameWidget(QtGui.QWidget):
             self.manyInARow.unfreezeGame()
     
     # Callbacks:
+    def aiMakeMove(self):
+        if(not self.scene.rejectClicks):
+            self.scene.blok(False)
+            self.manyInARow._makeAiMove(self.players)
+    
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
         print "gameJoinedCallBack"
         # We know the number of rows and colums, build the GUI board.
@@ -205,9 +213,6 @@ class GameWidget(QtGui.QWidget):
             self.freezeButton.setEnabled(True)
             if(self.scene != None):
                 self.scene.unblock(False)
-            
-            if(self.aiActive):
-                self.manyInARow._makeAiMove(self.players)
                 
     def disableClicks(self):
         print "disable clicks"
