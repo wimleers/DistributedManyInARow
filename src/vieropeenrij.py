@@ -110,14 +110,6 @@ class Field:
 
         random.seed(time.time())
         move = random.randint(0, self.cols-1)
-        for i in range (self.cols):
-            #check if we can make a winning move
-            y = self.makeMove (i, currentPlayer.UUID)
-            if y != -1 and self.checkNeighbour (i, y):
-                self.undoMove (i, y)
-                return i
-            self.undoMove (i, y)
-
         return move
         
     def checkNeighbour (self, x, y):
