@@ -193,6 +193,9 @@ class ManyInARowGame(Game):
                         self.guiFinishedCallback(self.winners)
                     else:
                         self.currentGoal += 1
+                
+                elif self._boardIsFull():
+                    self.guiFinishedCallback(self.winners)
         elif type == self.MOVE:
             row = self._makeMove(message['player'], message['col'], message['row'])
             self.guiMoveCallback(message['player'], message['col'], message['row'])
