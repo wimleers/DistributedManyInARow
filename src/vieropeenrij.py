@@ -62,6 +62,14 @@ class Field:
         self.rows = rows
         self.cols = cols
         self.values = [[-1 for i in xrange(cols)] for j in xrange(rows)]
+        
+    def isFull (self):
+        isFull = True
+        for i in range(self.cols):
+            if self.getRowIndexByColumn(i) != -1:
+                isFull = False
+                
+        return isFull
 
     def makeMove (self, x, player):
         

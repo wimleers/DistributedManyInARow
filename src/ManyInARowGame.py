@@ -210,6 +210,8 @@ class ManyInARowGame(Game):
                     self.guiFinishedCallback(self.winners)
                 else:
                     self.currentGoal += 1
+            elif self._boardIsFull():
+                self.guiFinishedCallback(self.winners)
         elif type == self.CHAT:
             self.guiChatCallback(playerUUID, message['message'])
         elif type == self.JOIN:              
@@ -269,6 +271,9 @@ class ManyInARowGame(Game):
     def _makeAiMove(self, players):
         col = self.field.getBestMove(self.player, players, self.currentGoal)
         self.makeMove(col)
+        
+    def _boardIsFull (self):
+        return self.field.isFull()
 
 
     def run(self):
