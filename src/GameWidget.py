@@ -185,7 +185,7 @@ class GameWidget(QtGui.QWidget):
     # Callbacks:
     def aiMakeMove(self):
         if(not self.scene.rejectClicks):
-            self.scene.blok(False)
+            self.scene.block(False)
             self.manyInARow._makeAiMove(self.players)
     
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
