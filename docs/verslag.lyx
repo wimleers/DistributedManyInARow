@@ -1,10 +1,10 @@
-#LyX 1.6.4.1 created this file. For more info see http://www.lyx.org/
+#LyX 1.6.5 created this file. For more info see http://www.lyx.org/
 \lyxformat 345
 \begin_document
 \begin_header
 \textclass article
 \use_default_options true
-\language english
+\language dutch
 \inputencoding auto
 \font_roman default
 \font_sans default
@@ -17,6 +17,7 @@
 
 \graphics default
 \paperfontsize default
+\spacing single
 \use_hyperref false
 \papersize default
 \use_geometry false
@@ -41,14 +42,65 @@
 
 \begin_body
 
-\begin_layout Standard
-\begin_inset Note Note
+\begin_layout Title
+Project Gedistribueerde Systemen: 
+\begin_inset ERT
 status open
 
 \begin_layout Plain Layout
-Titelblad.
+
+
+\backslash
+
+\backslash
+
 \end_layout
 
+\end_inset
+
+Multi-op-een-Rij
+\end_layout
+
+\begin_layout Author
+Kristof Bamps 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+
+\backslash
+
+\end_layout
+
+\end_inset
+
+Wim Leers 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+
+\backslash
+
+\end_layout
+
+\end_inset
+
+Brecht Schoolmeesters
+\end_layout
+
+\begin_layout Date
+Academiejaar 2009-2010
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
 \end_inset
 
 
@@ -59,11 +111,27 @@ Aanpak
 \end_layout
 
 \begin_layout Standard
-We zijn begonnen met gewoonweg vier op een rij te bouwen.
- Vervolgens hebben we alle onderliggende lagen gebouwd die nodig zijn voor
- een distributed vier op een rij en de netwerklogica abstraheren, zodat
- we het spel zelf eenvoudig kunnen definiëren a.d.h.v.
- het sturen van berichten en het aanvragen van de mutex, en niets méér.
+We zijn begonnen met het bouwen van een standaard vier-op-een-rij implementatie.
+ Vervolgens hebben we de onderliggende lagen gebouwd die nodig zijn voor
+ een gedistribueerde versie van vier-op-een-rij.
+ Hierbij hebben we de netwerklogica geabstraheerd, zodat het spel deze eenvoudig
+ kan gebruiken door het sturen van berichten over het netwerk.
+\end_layout
+
+\begin_layout Standard
+Concurrent met de backend implementatie werd er ook aan de GUI gewerkt.
+ Deze wordt door de backend geüpdatet door callbacks telkens er een bericht
+ ontvangen wordt in de backend.
+ 
+\end_layout
+
+\begin_layout Standard
+De laatste stap was het samenvoegen van de backend met de GUI en het uitgebreid
+ testen van de applicatie.
+ Dit werd gedaan netwerkdelays te veroorzaken terwijl het spel gespeeld
+ werd.
+ Daarna werd dan gecontroleerd of de weergave van het spelbord consistent
+ was in ieder spel.
 \end_layout
 
 \begin_layout Standard
@@ -72,6 +140,7 @@ status open
 
 \begin_layout Plain Layout
 Uitgebreidere beschrijving nodig waarschijnlijk.
+ --> Goed zo?
 \end_layout
 
 \end_inset
@@ -129,7 +198,7 @@ We hadden het dus een mooie abstractielaag rond zeroconf gebouwd en — hoewel
  ze werkte — bleek onbruikbaar in de praktijk, tenzij er aan sterke fragmentatie
  werd gedaan.
  We hebben dus uiteindelijk geopteerd om toch IP multicast te gebruiken
- voor het zenden van berichten: daar ligt de limiet van een énkel bericht
+ voor het zenden van berichten: daar ligt de limiet van een enkel bericht
  op 64 KB.
 \end_layout
 
@@ -1496,6 +1565,66 @@ Mogelijke extra: beperkt aantal toegelaten spelers.
  Vereist een coördinator en dus ook een election algoritme.
 \end_layout
 
+\begin_layout Section
+Extra's
+\end_layout
+
+\begin_layout Standard
+Om de standaardimplementatie wat meer uit te breiden hebben we volgende
+ extra's geïmplementeerd:
+\end_layout
+
+\begin_layout Itemize
+Gebruik van ZeroConf voor het ontdekken van andere spelers en spellen op
+ het netwerk
+\end_layout
+
+\begin_layout Itemize
+Meerdere spellen tegelijk spelen in 1 applicatie
+\end_layout
+
+\begin_layout Itemize
+Gebruiker kan informatie over een spel opvragen door met de muis over het
+ spel te bewegen in de 
+\begin_inset Quotes eld
+\end_inset
+
+actieve spellen
+\begin_inset Quotes erd
+\end_inset
+
+ lijst
+\end_layout
+
+\begin_layout Itemize
+Mogelijkheid om te chatten
+\end_layout
+
+\begin_layout Itemize
+Speler ziet waar zijn blokje zal vallen door over de kolommen te bewegen
+ met de muis
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Nog andere extra's die ik gewoon vergeet?
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
 \begin_layout Bibliography
 \begin_inset CommandInset bibitem
 LatexCommand bibitem
@@ -1509,7 +1638,7 @@ TCP/IP model
 \emph default
 , Wikipedia, 
 \begin_inset Flex URL
-status collapsed
+status open
 
 \begin_layout Plain Layout
 
