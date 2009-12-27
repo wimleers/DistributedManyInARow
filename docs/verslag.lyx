@@ -3,6 +3,9 @@
 \begin_document
 \begin_header
 \textclass article
+\begin_preamble
+\setcounter{page}{0}
+\end_preamble
 \use_default_options true
 \language dutch
 \inputencoding auto
@@ -807,6 +810,238 @@ eit correct werkt.
 \end_layout
 
 \begin_layout Subsection
+MessageProcessor.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:MessageProcessor.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+@kristof
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Player.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Player.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Deze extreem eenvoudige 
+\family typewriter
+Player
+\family default
+ klasse stelt een speler voor in een gedistribueerd spel.
+ Er wordt automatisch een unieke identifier gegenereerd: een UUID.
+ Aan de hand van de base 10 voorstelling van deze UUID wordt ook een unieke
+ kleur gegenereerd.
+\end_layout
+
+\begin_layout Subsection
+Game.py
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Game.py"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Ten slotte is er nog de 
+\family typewriter
+Game
+\family default
+ klasse, die een 
+\family typewriter
+OneToManyService
+\family default
+ en een 
+\family typewriter
+Player
+\family default
+ verwacht als parameters.
+ Vervolgens genereert deze een UUID voor het spel (een 
+\emph on
+sessie
+\emph default
+ in algemenere termen) en start een 
+\family typewriter
+GlobalState
+\family default
+ object met de ontvangen 
+\family typewriter
+OneToManyService
+\family default
+, de gegenereerde game UUID als session UUID en de player UUID als sender
+ UUID.
+\end_layout
+
+\begin_layout Standard
+Verder abstraheert deze klasse het verzenden en ontvangen van berichten
+ via de global state en het verzenden en ontvangen van de speciale service
+ berichten, wat niet via de 
+\family typewriter
+GlobalState
+\family default
+ maar rechtstreeks via de 
+\family typewriter
+OneToManyService
+\family default
+ verloopt.
+\end_layout
+
+\begin_layout Standard
+Ten slotte voorziet deze klasse gedistribueerde mutex functionaliteit: een
+ rechtoe-rechtaan implementatie van het Ricart-Agrawala 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Ricart-Agrawala"
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+ook verwijzing naar boek?
+\end_layout
+
+\end_inset
+
+ algoritme was mogelijk dankzij het gebruik van vectorklokken, UUIDs om
+ iedere 
+\family typewriter
+Player
+\family default
+ te identificeren en de onderliggende netwerklagen die de complexiteit van
+ het netwerk abstraheren.
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+Game
+\family default
+ heeft ook weer een eigen thread (
+\family typewriter
+Game-Thread
+\family default
+), wat nodig is omdat 
+\family typewriter
+Game
+\family default
+ ontworpen is om gesubclassed te worden en het spel in goede banen te leiden.
+ Zie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:ManyInARowGame.py"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+GlobalState met VectorClock versus Elections
+\end_layout
+
+\begin_layout Standard
+We hadden eerst een volledig werkende implementatie met GlobalState en VectorClo
+ck, omdat we begrepen hadden uit de les dat dit zou moeten werken.
+ Echter, het bleek slechts met 2 spelers goed te werken, vanaf 3 spelers
+ waren er problemen.
+ Namelijk: 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+@kristof & brecht: leg uit
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Dit hebben we echter pas laat gemerkt en bijgevolg was het verslag al geschreven
+ over deze twee modules.
+ In deze sectie vind je dan ook de volledige uitleg over de oude aanpak,
+ maar dan nu geannotteerd met opmerkingen waarom dit uiteindelijk niet kon
+ werken.
+ 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+@kristof & brecht: annoteer aub
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Schema
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename /Users/wimleers/School/GS/project/svn/docs/images/DistributedGame-GlobalState.png
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Structuur ten tijde van GlobalState.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
 VectorClock.py
 \begin_inset CommandInset label
 LatexCommand label
@@ -961,7 +1196,7 @@ VectorClock
  zeker goed werkt.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Subsubsection
 GlobalState.py
 \begin_inset CommandInset label
 LatexCommand label
@@ -1164,31 +1399,7 @@ service-to-service
 \family typewriter
 OneToManyService
 \family default
-) en zo ook de gehele glbobal state reconstrueren.
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Kristof: kijk of dit nog steeds juist is als je klaar bent met de implementatie.
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Kristof: voeg liveness checking nog toe hier.
- Tenminste, als je 't in GlobalState implementeert.
-\end_layout
-
-\end_inset
-
-
+) en zo ook de gehele global state reconstrueren.
 \end_layout
 
 \begin_layout Standard
@@ -1204,135 +1415,6 @@ Service
 \family default
  gebruikt, dus indien deze tests succesvol blijken, hebben we ook die nogmaals
  getest.
-\end_layout
-
-\begin_layout Subsection
-Player.py
-\begin_inset CommandInset label
-LatexCommand label
-name "sub:Player.py"
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Deze extreem eenvoudige 
-\family typewriter
-Player
-\family default
- klasse stelt een speler voor in een gedistribueerd spel.
- Er wordt automatisch een unieke identifier gegenereerd: een UUID.
- Aan de hand van de base 10 voorstelling van deze UUID wordt ook een unieke
- kleur gegenereerd.
-\end_layout
-
-\begin_layout Subsection
-Game.py
-\begin_inset CommandInset label
-LatexCommand label
-name "sub:Game.py"
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Ten slotte is er nog de 
-\family typewriter
-Game
-\family default
- klasse, die een 
-\family typewriter
-OneToManyService
-\family default
- en een 
-\family typewriter
-Player
-\family default
- verwacht als parameters.
- Vervolgens genereert deze een UUID voor het spel (een 
-\emph on
-sessie
-\emph default
- in algemenere termen) en start een 
-\family typewriter
-GlobalState
-\family default
- object met de ontvangen 
-\family typewriter
-OneToManyService
-\family default
-, de gegenereerde game UUID als session UUID en de player UUID als sender
- UUID.
-\end_layout
-
-\begin_layout Standard
-Verder abstraheert deze klasse het verzenden en ontvangen van berichten
- via de global state en het verzenden en ontvangen van de speciale service
- berichten, wat niet via de 
-\family typewriter
-GlobalState
-\family default
- maar rechtstreeks via de 
-\family typewriter
-OneToManyService
-\family default
- verloopt.
-\end_layout
-
-\begin_layout Standard
-Ten slotte voorziet deze klasse gedistribueerde mutex functionaliteit: een
- rechtoe-rechtaan implementatie van het Ricart-Agrawala 
-\begin_inset CommandInset citation
-LatexCommand cite
-key "Ricart-Agrawala"
-
-\end_inset
-
-
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-ook verwijzing naar boek?
-\end_layout
-
-\end_inset
-
- algoritme was mogelijk dankzij het gebruik van vectorklokken, UUIDs om
- iedere 
-\family typewriter
-Player
-\family default
- te identificeren en de onderliggende netwerklagen die de complexiteit van
- het netwerk abstraheren.
-\end_layout
-
-\begin_layout Standard
-
-\family typewriter
-Game
-\family default
- heeft ook weer een eigen thread (
-\family typewriter
-Game-Thread
-\family default
-), wat nodig is omdat 
-\family typewriter
-Game
-\family default
- ontworpen is om gesubclassed te worden en het spel in goede banen te leiden.
- Zie 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "sub:ManyInARowGame.py"
-
-\end_inset
-
-.
 \end_layout
 
 \begin_layout Section
