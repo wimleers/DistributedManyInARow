@@ -59,7 +59,15 @@ class NetworkLobbyWidget(QtGui.QWidget):
             
     def addPeer(self, serviceName, interfaceIndex, ip, port):
         newItem = NetworkLobbyPeerItem(serviceName, serviceName, interfaceIndex, ip, port, self.peerList)
-        self.peerList.addItem(newItem)
+        found = False
+        for i in range(self.peerList.count()):
+            currentItem = self.peerList.item(i)
+            if(currentItem.serviceName == serviceName and currentItem.interfaceIndex != interfaceIndex):
+                found = True
+                currentItem.addInfo(interfaceIndex, ip, port)
+                
+        if(not found):
+            self.peerList.addItem(newItem)
         
     
     def removePeer(self, serviceName, interfaceIndex):
@@ -130,6 +138,9 @@ class NetworkLobbyPeerItem(QtGui.QListWidgetItem):
         self.interfaceIndex = interfaceIndex
         self.ip = ip
         self.port = port
+        
+    def addInfo(self, interfaceIndex, ip, port):
+        self.setToolTip(self.toolTip() + str("\nInterfaceindex: " + str(interfaceIndex) + "\nip: " + str(ip) + "\nport: " + str(port)))
         
 class NetworkLobbyPlayerItem(QtGui.QListWidgetItem):
     def __init__(self, text, player, view):
