@@ -61,7 +61,7 @@ status open
 
 \end_inset
 
-Multi-op-een-Rij
+Many-In-A-Row
 \end_layout
 
 \begin_layout Author
@@ -133,13 +133,12 @@ reference "sub:Zeroconf-vs-multicast"
 
 .
  Daarom hebben we naast Zeroconf ook IP multicast gebruikt.
- We hebben het spel eerst geïmplementeerd a.d.h.v.
- het 
+ We hebben het spel eerst geïmplementeerd aan de hand van het 
 \emph on
 global state
 \emph default
- principe, maar ook dit had een hoop overbodig werk als gevolg, want we
- moesten uiteindelijk 
+ principe, maar ook dit werk was overbodig, want we moesten uiteindelijk
+ 
 \emph on
 elections
 \emph default
@@ -167,7 +166,7 @@ Is dit te negatief?
 \begin_layout Standard
 Concurrent met de backend implementatie werd er ook aan de GUI gewerkt.
  Deze wordt door de backend geüpdatet door callbacks telkens er een bericht
- ontvangen wordt in de backend.
+ ontvangen wordt.
  
 \end_layout
 
@@ -177,7 +176,7 @@ De laatste stap was het samenvoegen van de backend met de GUI en het uitgebreid
  Dit werd gedaan door netwerkdelays te veroorzaken terwijl het spel gespeeld
  werd.
  Daarna werd dan gecontroleerd of de weergave van het spelbord consistent
- was in ieder instantie van het spel.
+ was in iedere instantie van het spel.
 \end_layout
 
 \begin_layout Section
@@ -214,10 +213,10 @@ Eerst was het de bedoeling om alles d.m.v.
  zeroconf (zero configuration) networking te doen.
  Zeroconf werkt op basis van DNS en het wisselt informatie uit d.m.v.
  DNS TXT records.
- In verscheidene bronnen werd melding gemaakt van een maximum grootte van
- DNS TXT records van 64 KB.
- Nu werd daar niet expliciet bij vermeld dat daarmee bedoeld werd dat de
- 
+ In verscheidene bronnen werd vermeld dat de maximum grootte van DNS TXT
+ records 64 KB bedraagt.
+ Er werd echter niet expliciet bij vermeld dat daarmee bedoeld werd dat
+ de 
 \emph on
 som
 \emph default
@@ -240,10 +239,11 @@ We hebben deze zeroconf abstractie wel nog steeds gebruikt voor automatische
 \end_layout
 
 \begin_layout Standard
-Opmerking: als we betere parate kennis hadden gehad van DNS hadden we dus
- opgemerkt dat 64 KB per TXT record niet kon, net omdat de limiet van een
- DNS pakket als geheel al begrensd wordt door de limiet van UDP, want DNS
- werkt bovenop UDP.
+Opmerking: als we betere parate kennis van DNS hadden, hadden we dus opgemerkt
+ dat 64 KB per TXT record niet kon.
+ Dit omdat de limiet van een DNS pakket als geheel begrensd wordt door de
+ limiet van UDP.
+ DNS werkt immers bovenop UDP.
  
 \begin_inset CommandInset citation
 LatexCommand cite
@@ -346,6 +346,16 @@ outbox
 \family default
  queues.
  Voordat deze queues aangesproken worden, moet er uiteraard eerst een lock
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+het kan aan mij liggen, maar je komt hier ineens uit het niets met een lock.
+ mss een beetje context daarover als dat nodig is?
+\end_layout
+
+\end_inset
+
  aangevraagd worden.
 \end_layout
 
@@ -386,7 +396,7 @@ DNSServiceAddRecord
 \end_layout
 
 \begin_layout Standard
-Deze Python module heeft zijn eigen thread (
+Deze ZeroconfMessaging module heeft zijn eigen thread (
 \family typewriter
 ZeroconfMessaging-Thread
 \family default
@@ -460,8 +470,8 @@ In deze laatste callback functie zit vervolgens de meeste logica, want die
 Voor pybonjour was er geen documentatie omdat die in principe hetzelfde
  is als die van Bonjour zelf.
  Regelmatig waren er heel erg tricky edge cases die nergens expliciet vermeld
- waren, maar na een zoektocht door de documentatie was er wel achter te
- komen.
+ waren, maar na een zoektocht door de documentatie hebben we de oplossingen
+ uiteindelijk wel gevonden.
 \end_layout
 
 \begin_layout Standard
@@ -543,7 +553,17 @@ outbox
 \family default
  queues.
  Ook voordat deze queues aangesproken worden, moet er uiteraard eerst een
- lock aangevraagd worden.
+ lock
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+weer dat lock
+\end_layout
+
+\end_inset
+
+ aangevraagd worden.
 \end_layout
 
 \begin_layout Standard
@@ -601,9 +621,8 @@ IPMulticastMessaging-Thread
  Er is een fixed header size van 46 bytes: 36 karakters voor de UUID, 5
  karakters voor het sequence number en 5 karakters die het totale aantal
  fragmenten voorstellen.
- De fragmenten worden per packet ID in een buffer bijgehouden en zodra er
- evenveel fragmenten zijn als er zouden moeten zijn, worden ze weer samengevoegd
- tot een enkel pakket.
+ De fragmenten worden per packet ID in een buffer bijgehouden en zodra alle
+ fragmenten van een pakket ontvangen zijn, worden ze weer samengevoegd.
 \end_layout
 
 \begin_layout Subsection
@@ -657,7 +676,11 @@ IPMulticastMessaging
 ZeroconfMessaging
 \family default
  instantie).
- Deze heeft callbacks die overeenkomen met die van 
+ 
+\family typewriter
+Service
+\family default
+ heeft callbacks die overeenkomen met die van 
 \family typewriter
 ZeroconfMessaging
 \family default
@@ -709,7 +732,7 @@ Deze subclass van
 \family typewriter
 Service
 \family default
- wordt niet gebruikt: hij is er voor de volledigheid.
+ wordt niet gebruikt: hij is er enkel voor de volledigheid.
  Deze class dient gebruikt te worden indien er maar 1 bestemming is binnen
  een applicatie.
  Bijvoorbeeld 1 globale chat room i.p.v.
@@ -738,8 +761,8 @@ OneToOneService
 
 \begin_layout Standard
 Om dit mogelijk te maken, voegt deze een extra laag toe: bij het verzenden
- dien je een bestemming op te geven en voor iedere bestemming wordt automatisch
- een aparte inbox aangemaakt.
+ van berichten dien je een bestemming op te geven.
+ Voor iedere bestemming wordt automatisch een aparte inbox aangemaakt.
  Dit is dus in feite een routerlaag, die ervoor zorgt dat de berichten op
  de juiste bestemming 
 \emph on
@@ -779,11 +802,31 @@ lokale niveau
 \end_inset
 
  werken (bijvoorbeeld meerdere chat rooms).
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+dit is niet zo duidelijk
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
 Omdat we bij een hogere laag zijn aangekomen, moet je niet meer rechtstreeks
  op queues werken, maar zijn er methods voorzien om dit intuïtiever te maken.
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+welke?
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -813,9 +856,9 @@ MessageProcessor
 \family default
 is de klasse die ervoor zorgt dat bij elke speler hetzelfde spelbord te
  zien is, met ander woorden: dat berichten in de juiste volgorde aankomen.
- Alsook zorgt deze klasse ervoor dat onvoorziene 
+ Ook zorgt deze klasse ervoor dat onvoorziene 
 \emph on
-leaves
+leaves (crashes)
 \emph default
  van spelers worden opgevangen.
  
@@ -826,12 +869,22 @@ leaves
 \family typewriter
 MessageProcessor
 \family default
- verwacht een 
+ moet geïnitialiseerd worden met een 
 \family typewriter
 OneToManyService
 \family default
  instantie, een session UUID en een sender UUID.
- De session UUID dient als destination (als 
+ De session UUID dient als destination
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+niet zo duidelijk, kan weer aan mijn liggen :s
+\end_layout
+
+\end_inset
+
+ (als 
 \begin_inset Quotes eld
 \end_inset
 
@@ -851,22 +904,22 @@ reference "sub:OneToManyService"
 \end_inset
 
 .
- In het chatroom voorbeeld komen zo alle berichten voor die chatroom bij
- alle andere deelnemers aan.
+ In het chatroom voorbeeld zorgt dit ervoor dat alle berichten voor die
+ chatroom bij alle andere deelnemers aankomen.
  De sender UUID dient om iedere deelnemer uniek te kunnen identificeren.
 \end_layout
 
 \begin_layout Standard
 Om ervoor te zorgen dat elke speler hetzelfde spelbord te zien krijgt, hebben
  we gewerkt met een server die gekozen wordt door middel van elections.
- Hierbij hebben we gekozen voor het buddy-algoritme.
+ Hierbij hebben we gekozen voor het bully-algoritme.
  Een election wordt gestart als de vorige server is gecrasht, of deze het
  spel heeft verlaten.
  Bij dit algoritme is er het probleem dat bij een election meerdere clients
  zichzelf tot server kunnen uitroepen, dit hebben we opgevangen door te
  werken met NTP-timestamps.
- Door bij het starten van het spel de NTP-offset op te vragen met de huidige
- klok, is het mogelijk om nauwkeurig de NTP-tijd te berekenen.
+ Door bij het starten van het spel de NTP-offset met de huidige klok op
+ te vragen, is het mogelijk om nauwkeurig de NTP-tijd te berekenen.
  Als er dan meerdere clients zichzelf tot server uitroepen beslissen we,
  aan de hand van de NTP-tijd waarop ze dit deden, welke effectief de server
  zal worden.
@@ -883,9 +936,9 @@ verstuurd werd dat als bestemming de server heeft, kan het zijn dat de server
  in de tussentijd gecrasht is.
  Om ervoor te zorgen dat deze berichten niet verloren gaan, houden we een
  lijst van deze verzonden messages bij.
- Zodra de host deze messages approval geeft, worden ze uit de lijst verwijderd.
- Als deze messages time-outen, zal het bericht opnieuw verstuurd worden.
- Hierdoor zullen deze berichten uiteindelijk aankomen bij de nieuwe host.
+ Zodra de server deze messages goedkeurt, worden ze uit de lijst verwijderd.
+ Als een bericht time-out, zal het opnieuw verstuurd worden.
+ Hierdoor zal een bericht uiteindelijk aankomen bij de nieuwe server.
 \end_layout
 
 \begin_layout Standard
@@ -896,8 +949,7 @@ OneToManyService
 een bericht ontvangen werd met als bestemming onze sessionUUID, zal het
  bericht hier verwerkt of doorgegeven worden.
  Berichten die specifiek voor de server bedoeld zijn (zoals een verzoek
- om een move), zullen enkel worden verwerkt of doorgegeven als dit de server
- is.
+ om een zet te doen), zullen enkel worden verwerkt door de server.
 \end_layout
 
 \begin_layout Standard
@@ -907,7 +959,8 @@ MessageProcessor
 \family default
 zorgt ook voor het detecteren van gecrashte processen.
  Het doet dit door keep-alive messages naar alle andere spelers te sturen.
- Er wordt zo'n bericht gestuurd om de gemiddelde RTT tot elke andere speler.
+ Er wordt zo'n bericht gestuurd om de gemiddelde RTT (Round Trip Time) tot
+ elke andere speler te berekenen.
  Hierdoor kunnen we snel detecteren of een proces gecrasht is bij een snelle
  verbinding, en flooden we trage verbindingen niet.
  Een proces detecteren we als gecrasht, als er binnen de 5 RTT's nog geen
@@ -915,10 +968,19 @@ zorgt ook voor het detecteren van gecrashte processen.
  Om deze RTT te berekenen gebruiken we wederom NTP, we kunnen de RTT halen
  uit het verschil tussen het tijdstip van verzenden en ontvangst.
  Als er geen NTP beschikbaar is (er is geen internet beschikbaar), sturen
- we deze keep-alive messages om een vast interval, en wachten we 10 seconden
+ we deze keep-alive messages op een vast interval, en wachten we 10 seconden
  op de aankomst van deze messages, voordat we een proces als gecrasht detecteren.
- Hierdoor zullen clients die last hebben van grote delays niet gedecteerd
- worden als gecrasht.
+ We hebben gekozen voor zo'n grote delay om ervoor te zorgen dat clients
+ die enkele seconden delay ondervinden, niet onmiddelijk beschouwd worden
+ als 
+\begin_inset Quotes eld
+\end_inset
+
+gecrashed
+\begin_inset Quotes erd
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Subsection
@@ -933,11 +995,8 @@ name "sub:Player.py"
 \end_layout
 
 \begin_layout Standard
-Deze extreem eenvoudige 
-\family typewriter
-Player
-\family default
- klasse stelt een speler voor in een gedistribueerd spel.
+Deze extreem eenvoudige klasse stelt een speler voor in een gedistribueerd
+ spel.
  Er wordt automatisch een unieke identifier gegenereerd: een UUID.
  Aan de hand van de base 10 voorstelling van deze UUID wordt ook een unieke
  kleur gegenereerd.
@@ -972,7 +1031,7 @@ Player
 \emph on
 sessie
 \emph default
- in algemenere termen) en start een 
+ in algemene termen) en start een 
 \family typewriter
 MessageProcessor
 \family default
@@ -987,7 +1046,8 @@ OneToManyService
 \begin_layout Standard
 Verder abstraheert deze klasse het verzenden en ontvangen van berichten
  via de global state en het verzenden en ontvangen van de speciale service
- berichten, wat niet via de 
+ berichten.
+ Dit verloopt niet via de 
 \family typewriter
 MessageProcessor
 \family default
@@ -995,11 +1055,11 @@ MessageProcessor
 \family typewriter
 OneToManyService
 \family default
- verloopt.
+.
 \end_layout
 
 \begin_layout Standard
-Ten slotte voorziet deze klasse gedistribueerde mutex functionaliteit: een
+Ten slotte voorziet deze klasse gedistribueerde mutex functionaliteit (een
  rechtoe-rechtaan implementatie van het Ricart-Agrawala 
 \begin_inset CommandInset citation
 LatexCommand cite
@@ -1007,7 +1067,7 @@ key "Ricart-Agrawala"
 
 \end_inset
 
- algoritme was mogelijk dankzij het gebruik van vectorklokken, UUIDs om
+ algoritme was mogelijk dankzij het gebruik van vectorklokken), UUIDs om
  iedere 
 \family typewriter
 Player
@@ -1055,12 +1115,12 @@ name "sub:GlobalState-vs-Elections"
 We hadden eerst een volledig werkende implementatie met GlobalState en VectorClo
 ck, omdat we begrepen hadden uit de les dat dit zou moeten werken.
  Echter, dit bleek niet het geval, omwille van volgende reden: bij vectorklokken
- kunnen we weten wanneer een proces zich voor een andere proces heeft voorgedaan
-, aangezien de klok van het proces dat zich eerst voordeed lager was.
- Er doet zich echt een probleem voor als 2 of meer processen zich tegelijk
+ kunnen we weten wanneer een event zich voor een andere event heeft voorgedaan,
+ aangezien de klok van het event dat zich eerst voordeed lager was.
+ Er doet zich echter een probleem voor als 2 of meer events zich tegelijk
  voordoen.
  Door gebruik te maken van vectorklokken is het dan niet meer mogelijk te
- achterhalen welk proces zich eerst voordeed, en dus is het ook niet mogelijk
+ achterhalen welk event zich eerst voordeed, en dus is het ook niet mogelijk
  om te weten welke speler eerst een mutex aanvroeg.
  Het is hierbij dan ook niet mogelijk te weten welke klok de 'juiste' klok
  is.
@@ -1077,9 +1137,8 @@ reference "sub:VectorClock.py"
 \begin_layout Standard
 Dit hebben we echter pas laat gemerkt en bijgevolg was het verslag al geschreven
  over deze twee modules.
- In deze sectie vind je dan ook de volledige uitleg over de oude aanpak,
- maar dan nu geannotteerd met opmerkingen waarom dit uiteindelijk niet kon
- werken.
+ In deze sectie volgt dan ook de volledige uitleg over de oude aanpak, maar
+ dan nu geannotteerd met opmerkingen waarom dit niet werkte.
  
 \end_layout
 
@@ -1284,7 +1343,7 @@ Probleem
 \begin_layout Standard
 Een probleem doet zich echt voor als bijvoorbeeld 3 spelers tegelijk een
  zet doen.
- De 3 spelers zullen dan gelijktijdig een mutex aanvragen (
+ De 3 spelers vragen dan gelijktijdig een mutex aan (
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sub:GlobalState.py"
@@ -1293,17 +1352,7 @@ reference "sub:GlobalState.py"
 
 ).
  De klokken zijn allemaal geinitaliseerd op 0.
- Het volgende doet zich dan voor
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Brecht, kan je dit lezen en kijken of het steek houdt?
-\end_layout
-
-\end_inset
-
-:
+ Het volgende doet zich dan voor:
 \end_layout
 
 \begin_layout Enumerate
@@ -1331,11 +1380,11 @@ C stuurt mutex bericht met klok:
 \end_layout
 
 \begin_layout Standard
-Bij A komt bericht van B binnen met klok: 
+Bij A komt het bericht van B binnen met klok: 
 \begin_inset Formula ${A:0,B:1,C:0}$
 \end_inset
 
-, dit is immediately concurrent met de klok van A, dus klok van A wordt
+, dit is immediately concurrent met de klok van A, dus de klok van A wordt
  geset op 
 \begin_inset Formula ${A:1,B:1,C:0}$
 \end_inset
@@ -1344,13 +1393,13 @@ Bij A komt bericht van B binnen met klok:
 \end_layout
 
 \begin_layout Standard
-Bij A komt bericht van C binnen met klok: 
+Daarn komt bij A komt het bericht van C binnen met klok: 
 \begin_inset Formula ${A:0,B:0,C:1}$
 \end_inset
 
 , deze valt niet te mergen met de klok van A, dus weten we niet welke speler
  als eerst de mutex krijgt.
- Andere spelers hebben hetzelfde probleem
+ De andere spelers hebben hetzelfde probleem.
 \end_layout
 
 \begin_layout Subsubsection
@@ -1372,7 +1421,26 @@ GlobalState
  zorgt ervoor dat berichten in de correcte volgorde worden gezet voordat
  ze doorgegeven worden aan de hoger liggende laag.
  Hierbij wordt gebruik gemaakt van vector klokken.
- We gebruiken vector klokken en niet Lamport klokken o.w.v.:
+ We gebruiken
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+gebruiken we die nog steeds? of is dit nog van het vorig verslag en moet
+ dit 
+\begin_inset Quotes eld
+\end_inset
+
+gebruikten
+\begin_inset Quotes erd
+\end_inset
+
+ zijn?
+\end_layout
+
+\end_inset
+
+ vector klokken en niet Lamport klokken o.w.v.:
 \end_layout
 
 \begin_layout Quotation
@@ -1415,6 +1483,16 @@ OneToManyService
 
 kanaal
 \begin_inset Quotes erd
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+kanaal weer niet zo duidelijk, ligt wss aan mij...
+\end_layout
+
 \end_inset
 
  eigenlijk) voor 
@@ -1488,7 +1566,11 @@ isImmediatelyConcurrentWith(other)
 \end_layout
 
 \begin_layout Standard
-Ook deze Python module heeft zijn eigen thread (
+Ook 
+\family typewriter
+GlobalState
+\family default
+ module heeft zijn eigen thread (
 \family typewriter
 GlobalState-Thread
 \family default
@@ -1506,7 +1588,7 @@ OneToManyService
  en in een wachtkamer geplaatst.
  Nadat alle binnekomende berichten opgehaald zijn, worden de berichten in
  de wachtkamer volgens hun vectorklok gesorteerd.
- Die met de laagste klokwaarde wordt er uitgepikt.
+ Diegene met de laagste klokwaarde wordt eruit gepikt.
  Indien de huidige klokwaarde van de 
 \family typewriter
 GlobalState
@@ -1544,9 +1626,9 @@ Alle verzonden en ontvangen berichten worden opgeslagen in een SQLite database,
 MessageHistory
 \family default
 , niet zozeer voor persistentie, maar vooral o.w.v.
- anders overbodig geheugengebruik: het is niet nodig om alle berichten in
- het geheugen te houden.
- Indien er dan achteraf een nieuw proces wilt joinen, kan de global state
+ overbodig geheugengebruik: het is niet nodig om alle berichten in het geheugen
+ te houden.
+ Indien er dan achteraf een nieuw proces wil joinen, kan de global state
  in blokken van berichten die uit deze database worden gehaald, worden doorgestu
 urd (via de speciale 
 \emph on
@@ -1572,6 +1654,16 @@ Service
 \family default
  gebruikt, dus indien deze tests succesvol blijken, hebben we ook die nogmaals
  getest.
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+?
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
@@ -1597,7 +1689,7 @@ name "sub:ManyInARowService.py"
 \end_layout
 
 \begin_layout Standard
-Hierin vind je de 
+Hierin bevindt zich de 
 \family typewriter
 ManyInARowService
 \family default
@@ -1638,7 +1730,7 @@ Er zijn ook 3 methods voorzien die vanuit
 ManyInARowGame
 \family default
  dienen aangeroepen te worden opdat de netwerk-wijde toestand up-to-date
- is en blijft: 
+ blijft: 
 \family typewriter
 hostGame()
 \family default
@@ -1668,8 +1760,7 @@ name "sub:ManyInARowGame.py"
 \end_layout
 
 \begin_layout Standard
-Nu zijn we helemaal bovenaan in de hiërarchie: hierin zit alle feitelijke
- spellogica.
+Nu zijn we helemaal bovenaan in de hiërarchie: hierin zit alle spellogica.
  Al het voorgaande is puur ter ondersteuning: om deze code eenvoudig te
  maken.
 \end_layout
@@ -1689,7 +1780,7 @@ die berichten over het spel hiernaar doorgeeft.
 MessageProcessor
 \family default
  doorgestuurd.
- Deze berichten hebben elk een bepaald type, die representatief is voor
+ Deze berichten hebben elk een bepaald type, dat representatief is voor
  een bepaalde functionaliteit in het spel.
  
 \end_layout
@@ -1697,9 +1788,10 @@ MessageProcessor
 \begin_layout Standard
 Het spelbord wordt in deze klasse bijgehouden, en aangepast indien een andere
  speler een zet doet.
- Als een bericht over het spel binnenkomt, zal dat hier verwerkt worden
- en naar de GUI doorgeven worden.
- Alsook roept de GUI functies in deze klasse aan als een speler iets doet.
+ Als een bericht over het spel binnenkomt, wordt dat hier verwerkt en naar
+ de GUI doorgeven.
+ De GUI roept functies in deze klasse aan om acties van de speler aan te
+ geven zoals bvb een zet doen of een chatbericht verzenden.
 \end_layout
 
 \begin_layout Section
@@ -1744,19 +1836,88 @@ Speler ziet waar zijn blokje zal vallen door over de kolommen te bewegen
 
 \begin_layout Itemize
 Mogelijkheid om een AI-speler te laten spelen
-\end_layout
-
-\begin_layout Itemize
 \begin_inset Note Note
 status open
 
 \begin_layout Plain Layout
-Nog andere extra's die ik gewoon vergeet?
+sorry Kristof
 \end_layout
 
 \end_inset
 
 
+\end_layout
+
+\begin_layout Section
+Gebruik 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+kan iemand dit nog snel nalezen? heb ik alles?
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Bij het starten van het programma wordt gevraagd een naam op te geven.
+ Dit is verplicht om verder te mogen gaan.
+\end_layout
+
+\begin_layout Standard
+Na het ingeven van de naam wordt het hoofdvenster getoond.
+ Hierin worden lijsten getoond met actieve spellen, actieve peers en actieve
+ spelers op het netwerk.
+ Er kan informatie over deze 3 opgevraagd worden door er met de muis over
+ te bewegen.
+ Bij een spel wordt er dan informatie getoond over het aantal rijen en kolommen
+ dat in dat spel gebruikt wordt, wanneer het spel gestart werd, hoelang
+ men moet wachten tussen verschillende zetten enzovoort.
+\end_layout
+
+\begin_layout Standard
+Een nieuw spel starten kan door op de 
+\begin_inset Quotes eld
+\end_inset
+
+add
+\begin_inset Quotes erd
+\end_inset
+
+ knop in het hoofdvenster te klikken.
+ Er wordt dan een venster getoond met opties voor het spel.
+ Er kan een naam opgegeven worden, wat commentaar en informatie over het
+ aantal rijen, kolommen en het aantal milliseconden tussen 2 zetten.
+ Na het starten van dat spel wordt dit zichtbaar voor alle andere spelers
+ op het netwerk.
+ Zij kunnen dan joinen door te dubbelklikken op het spel in de lijst.
+ Vanaf het moment dat er 2 spelers in een spel zitten kan er gespeeld worden.
+ Meerdere spellen joinen kan door te dubbelklikken op meerdere spellen in
+ de lijst.
+ Ieder spel wordt dan in een apart tabblad geopend.
+\end_layout
+
+\begin_layout Standard
+Een spel freezen, om de consistentie te controleren, kan eenvoudig door
+ op de freeze-knop te drukken.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+klote latex zet dit op een aparte pagina :P
+\end_layout
+
+\end_inset
+
+Als laatste is het ook nog mogelijk om een AI-speler te laten spelen.
+ Hiervoor moet de checkbox rechtsboven in het venster worden aangevinkt.
 \end_layout
 
 \begin_layout Standard

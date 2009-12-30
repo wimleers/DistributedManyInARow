@@ -9,4 +9,4 @@ excludes = ["PyQt4.uic.port_v3", "PyQt4.uic.port_v3.ascii_upper", "PyQt4.uic.por
 
 
 
-setup(windows=[{"script" : "MainWindow.py"}], options={"py2exe" : {"includes":["sip"], "excludes" : excludes, "dll_excludes": ["MSVCP90.dll",]}})
+setup(windows=[{"script" : "main.py"}], options={"py2exe" : {"includes":["sip"], "excludes" : excludes, "dll_excludes": ["MSVCP90.dll",]}})

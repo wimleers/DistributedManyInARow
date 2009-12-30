@@ -134,8 +134,10 @@ class NetworkLobbyPeerItem(QtGui.QListWidgetItem):
 class NetworkLobbyPlayerItem(QtGui.QListWidgetItem):
     def __init__(self, text, player, view):
         QtGui.QListWidgetItem.__init__(self, text, view)
+        self.player = None
+        self.setPlayer(player)
         
-        self.player = player
     def setPlayer(self, player):
+        self.player = player
         self.setText(player.name)
         self.setToolTip(str("UUID: " + player.UUID + "\ncolor: " + str(player.color)))
