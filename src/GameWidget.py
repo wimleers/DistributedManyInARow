@@ -102,7 +102,7 @@ class GameWidget(QtGui.QWidget):
                 player = self.getPlayer(winnerUUID)
                 self.logList.addMessage(player, "has won round " + str(currentGoal))
                 #winnerBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Round finished in game:  " + "\'"+self.gameName+"\'", player.name + " has won this round", QtGui.QMessageBox.Ok, self)
-                winnerBox.exec_()
+                #winnerBox.exec_()
             
         elif(event.type() == self.GAME_FINISHED_EVENT):
             with self.lock:

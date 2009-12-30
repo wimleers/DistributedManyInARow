@@ -1,6 +1,6 @@
 import time
 from DistributedGame.Game import Game
-from vieropeenrij import *
+from ManyInARow import *
 from threading import Timer
 
 
@@ -120,7 +120,6 @@ class ManyInARowGame(Game):
         # Let the GUI know that moves may now be made.
         # TODO: the message history must be retrieved completely before the
         # user may start making moves.
-        game._guiCanMakeMove()
 
         return game
 

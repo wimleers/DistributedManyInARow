@@ -131,7 +131,10 @@ class MessageProcessor(threading.Thread):
         with self.service.lock:
             # send a keepalive message which contains the NTP time at which it was sent, so we can calculate
             # Roundtrip time, and see if a player leaves the game
-            self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}, False)
+            if self.useNTP:
+                self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : time.time() + self.NTPoffset}, False)
+            else:
+                self.sendMessage({'type' : self.KEEP_ALIVE_TYPE, 'originUUID':self.senderUUID, 'timestamp' : 0}, False)
             
     def receiveKeepAliveMessage(self, message):
         with self.lock:
@@ -141,7 +144,11 @@ class MessageProcessor(threading.Thread):
             #calculate the roundtrip time
             rtt = 2 * timeDiff
             
-            self.receivedAliveMessages[uuid] = message['timestamp']
+            if self.useNTP and message['timestamp'] != 0:            
+                self.receivedAliveMessages[uuid] = message['timestamp']
+            else:
+                rtt = 2
+                self.receivedAliveMessages[uuid] = time.time()
             
             if not uuid in self.playerRTT.keys():
                 self.playerRTT[uuid] = rtt
@@ -338,13 +345,15 @@ class MessageProcessor(threading.Thread):
                             # check if move and join requests were received
                             self.checkApproval()
                             self.lastKeepAliveSendTime = time.time()
-                    elif self.useNTP and time.time() - self.lastKeepAliveSendTime > 1:
+                    elif time.time() - self.lastKeepAliveSendTime > 1:
                         self.keepAliveSent = True
                         self.sendKeepAliveMessage()
+                        self.checkKeepAlive()
+                        self.checkApproval()
                         self.lastKeepAliveSendTime = time.time()
 
-            # 20 refreshes per second is plenty.
-            time.sleep(0.05)
+            # 100 refreshes per second is plenty.
+            time.sleep(0.01)
 
 
     def kill(self):
