@@ -1,4 +1,4 @@
-#LyX 1.6.5 created this file. For more info see http://www.lyx.org/
+#LyX 1.6.3 created this file. For more info see http://www.lyx.org/
 \lyxformat 345
 \begin_document
 \begin_header
@@ -1672,6 +1672,25 @@ Mogelijkheid om een AI-speler te laten spelen
 Gebruik
 \end_layout
 
+\begin_layout Subsection
+Voorvereisten
+\end_layout
+
+\begin_layout Standard
+Om de applicatie uit te voeren op windows is de enige vereiste dat Bonjour
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Apple Bonjour"
+
+\end_inset
+
+ geïnstalleerd is.
+\end_layout
+
+\begin_layout Subsection
+Uitvoering programma
+\end_layout
+
 \begin_layout Standard
 Bij het starten van het programma wordt gevraagd een naam op te geven.
  Dit is verplicht om verder te mogen gaan.
@@ -1845,7 +1864,7 @@ Bonjour
 \emph default
 , Apple, 
 \begin_inset Flex URL
-status collapsed
+status open
 
 \begin_layout Plain Layout
 
@@ -1952,7 +1971,7 @@ key "DNS gebruikt UDP"
 
 Ricart-Agrawala algorithm, Wikipedia, 
 \begin_inset Flex URL
-status open
+status collapsed
 
 \begin_layout Plain Layout
 
