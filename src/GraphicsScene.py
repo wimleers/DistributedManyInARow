@@ -22,8 +22,8 @@ class GraphicsScene(QtGui.QGraphicsScene):
         self.waitText = self.addText("...Please wait...")
         self.waitText.setZValue(100)
         self.freezeText = QtGui.QGraphicsTextItem()
-        self.freezeText = self.addText("...Game frozen... (brrrrrrrrr)")
-        self.waitText.setZValue(100)
+        self.freezeText = self.addText("...Game frozen...")
+        self.freezeText.setZValue(100)
         font = QtGui.QFont()
         font.setBold(True)
         font.setFamily("Comic Sans MS")
@@ -158,7 +158,6 @@ class GraphicsScene(QtGui.QGraphicsScene):
             for i in range(self.nrCols):
                 for j in range(self.nrRows):
                     if(self.gameBoard[i][j] == item):
-                        print "clicked on column: " + str(i)
                         self.emit(QtCore.SIGNAL("playerClicked(int)"), i)
                     
     def mouseDoubleClickEvent(self, event):

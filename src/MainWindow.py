@@ -19,7 +19,7 @@ class MainWindow(QtGui.QMainWindow):
         #GUI
         self.createLayout()
         self.createMenu()
-        self.show()
+        self.showMaximized()
         self.succesBox = QtGui.QMessageBox(QtGui.QMessageBox.Information, "Success", "Service started successfully", QtGui.QMessageBox.Ok, self)
         self.errorBox = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error", "Service registration failed, please restart.", QtGui.QMessageBox.Ok, self)
         
@@ -95,45 +95,36 @@ class MainWindow(QtGui.QMainWindow):
             self.tabWidget.addTab(self.games[len(self.games) - 1], name)
         
     def serviceRegisteredCallback(self, name, regtype, port):
-        print "serviceRegisteredCallback"
         """with self.lock:
             self.succesBox.exec_()
         """
     def serviceRegistrationFailedCallback(self, name, errorCode, errorMessage):
-        print "serviceRegistrationFailedCallback"
         with self.lock:
             self.errorBox.setText(str(errorCode) + ": " + str(errorMessage))
             self.errorBox.exec_()
             self.close()
     
     def serviceUnregisteredCallback(self, serviceName, serviceType, port):
-        print "serviceUnregisteredCallback"
         pass
     
     def peerServiceDiscoveredCallback(self, serviceName, interfaceIndex, ip, port):
-        print "peerServiceDiscoveredCallback" 
         with self.lock:
             self.networkLobby.addPeer(serviceName, interfaceIndex, ip, port)
     
     def peerServiceRemovedCallback(self, serviceName, interfaceIndex):
-        print "peerServiceRemovedCallback" 
         with self.lock:
             self.networkLobby.removePeer(serviceName, interfaceIndex)
         
     def playerAddedCallback(self, player):
-        print "playerAddedCallback" 
         with self.lock:
             self.networkLobby.addPlayer(player)
     
     def playerUpdatedCallback(self, player):
-        print "playerUpdatedCallback"
         with self.lock:
             self.networkLobby.updatePlayer(player)
     
     def playerLeftCallback(self, player):
-        print "playerLeftCallback" 
         with self.lock:
-            print "Player left: " + str(player)
             self.networkLobby.removePlayer(player)
     
     def gameAddedCallback(self, gameUUID, newGame):
@@ -144,8 +135,6 @@ class MainWindow(QtGui.QMainWindow):
         pass
     
     def gameEmptyCallback(self, emptyGameUUID, UUID):
-        print "gameEmptyCallback" 
-        #TODO: remove the game tab for this game
         with self.lock:
             self.networkLobby.removeGame(emptyGameUUID)
     
@@ -180,11 +169,11 @@ class NewGameDialog(QtGui.QDialog):
         self.numRowEdit = QtGui.QSpinBox(self)
         self.numRowEdit.setMinimum(1)
         self.numRowEdit.setMaximum(30)
-        self.numRowEdit.setValue(5)
+        self.numRowEdit.setValue(7)
         self.numColEdit = QtGui.QSpinBox(self)
         self.numColEdit.setMinimum(1)
         self.numColEdit.setMaximum(30)
-        self.numColEdit.setValue(5)
+        self.numColEdit.setValue(7)
         self.waitTimeEdit = QtGui.QSpinBox(self)
         self.waitTimeEdit.setMinimum(100)
         self.waitTimeEdit.setMaximum(100000)

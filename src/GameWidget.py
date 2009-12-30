@@ -83,7 +83,6 @@ class GameWidget(QtGui.QWidget):
     # the main GUI thread
     
     def customEvent(self, event):
-        print "received custom event"
         if(event.type() == self.MAKE_MOVE_EVENT):
             with self.lock:
                 playerUUID = event.userData['playerUUID']
@@ -119,7 +118,6 @@ class GameWidget(QtGui.QWidget):
                 winnerBox.exec_()
                 
         else:
-            print 'unknown event received'
             return QtCore.QObject.customEvent(event)
             
         
@@ -137,18 +135,15 @@ class GameWidget(QtGui.QWidget):
     
     def aiToggled(self, state):
         if(state == QtCore.Qt.Checked):
-            print "ai active"
             self.aiActive = True
             self.aiTimer.start()
         else:
-            print "ai inactive"
             self.aiActive = False
             self.aiTimer.stop()
     
     
     # Functions the user can trigger:
     def sendMessage(self):
-        print self.ui.chatEdit.text()
         message = self.ui.chatEdit.text()
         self.ui.chatEdit.clear()
         
@@ -157,7 +152,6 @@ class GameWidget(QtGui.QWidget):
     
     def makeMove(self, column):
         # Passes the move to the class coordinating the game (ManyInARowGame)
-        print "Dropped in column: " + str(column)
         with self.lock:
             if(self.aiActive):
                 self.errorBox.setWindowTitle("AI is playing")
@@ -167,7 +161,6 @@ class GameWidget(QtGui.QWidget):
                 self.manyInARow.makeMove(column)
         
     def freezeGame(self):
-        print "Freezing the game"
         with self.lock:
             self.freezeButton.setDisabled(True)
             self.freezeButton.setText("Unfreeze")
@@ -175,7 +168,6 @@ class GameWidget(QtGui.QWidget):
             self.manyInARow.freezeGame()
         
     def unfreezeGame(self):
-        print "Unfreezing the game"
         with self.lock:
             self.freezeButton.setDisabled(True)
             self.freezeButton.setText("Freeze")
@@ -189,7 +181,6 @@ class GameWidget(QtGui.QWidget):
             self.manyInARow._makeAiMove(self.players)
     
     def gameJoinedCallBack(self, UUID, name, description, numRows, numCols, waitTime, startTime):
-        print "gameJoinedCallBack"
         # We know the number of rows and colums, build the GUI board.
         with self.lock:
             self.gameUUID = UUID
@@ -208,14 +199,12 @@ class GameWidget(QtGui.QWidget):
         
     
     def enableClicks(self):
-        print "enableClicks"
         with self.lock:                
             self.freezeButton.setEnabled(True)
             if(self.scene != None):
                 self.scene.unblock(False)
                 
     def disableClicks(self):
-        print "disable clicks"
         with self.lock:
             self.freezeButton.setDisabled(True)
             if(self.scene != None):
@@ -223,7 +212,6 @@ class GameWidget(QtGui.QWidget):
     
     
     def playerJoinedCallBack(self, playerUUID, newPlayer):
-        print "playerJoinedCallBack"
         with self.lock:
             if(not self.layoutCreated):
                 self.createLayout()
@@ -240,7 +228,6 @@ class GameWidget(QtGui.QWidget):
             
             
     def playerLeftCallBack(self, playerUUID):
-        print "playerLeftCallBack"
         with self.lock:
             self.logList.addMessage(self.players[playerUUID], "has left")
                 
@@ -253,7 +240,6 @@ class GameWidget(QtGui.QWidget):
 
 
     def chatCallBack(self, playerUUID, message):
-        print "chatCallBack"
         with self.lock:
             player = self.getPlayer(playerUUID)
             self.logList.addMessage(player, "said: " + message)
@@ -279,7 +265,6 @@ class GameWidget(QtGui.QWidget):
         
             
     def freezeCallback(self):
-        print "freezing via callback"
         with self.lock:
             self.freezeButton.setText("Unfreeze")
             QtCore.QObject.disconnect(self.freezeButton, QtCore.SIGNAL("clicked()"), self.freezeGame)
@@ -289,7 +274,6 @@ class GameWidget(QtGui.QWidget):
             self.scene.block(True)
             
     def unfreezeCallback(self):
-        print "unfreezing via callback"
         with self.lock:
             self.freezeButton.setEnabled(True)
             self.freezeButton.setText("Freeze")
@@ -299,7 +283,6 @@ class GameWidget(QtGui.QWidget):
             self.scene.unblock(True)
     
     def makeHoverMove(self, column):
-        print "hover column: " + str(column)
         with self.lock:
             if(not self.aiActive):
                 row = self.manyInARow._makeDummyMove(column)
@@ -328,7 +311,6 @@ class GameWidget(QtGui.QWidget):
         self.layoutCreated = True
         
     def closeEvent(self, event):
-        print 'closeEvent'
         if(self.manyInARow != None):
             self.manyInARow.kill()
             
