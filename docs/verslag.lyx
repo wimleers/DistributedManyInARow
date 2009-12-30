@@ -1,4 +1,4 @@
-#LyX 1.6.3 created this file. For more info see http://www.lyx.org/
+#LyX 1.6.5 created this file. For more info see http://www.lyx.org/
 \lyxformat 345
 \begin_document
 \begin_header
@@ -122,6 +122,49 @@ We zijn begonnen met het bouwen van een standaard vier-op-een-rij implementatie.
 \end_layout
 
 \begin_layout Standard
+Eerst hebben we gepoogd om geen IP multicast te gebruiken, maar om alle
+ communicatie via Zeroconf te laten verlopen.
+ Dit bleek onmogelijk: zie sectie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Zeroconf-vs-multicast"
+
+\end_inset
+
+.
+ Daarom hebben we naast Zeroconf ook IP multicast gebruikt.
+ We hebben het spel eerst geïmplementeerd a.d.h.v.
+ het 
+\emph on
+global state
+\emph default
+ principe, maar ook dit had een hoop overbodig werk als gevolg, want we
+ moesten uiteindelijk 
+\emph on
+elections
+\emph default
+ gebruiken.
+ Zie sectie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:GlobalState-vs-Elections"
+
+\end_inset
+
+.
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Is dit te negatief?
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 Concurrent met de backend implementatie werd er ook aan de GUI gewerkt.
  Deze wordt door de backend geüpdatet door callbacks telkens er een bericht
  ontvangen wordt in de backend.
@@ -134,21 +177,7 @@ De laatste stap was het samenvoegen van de backend met de GUI en het uitgebreid
  Dit werd gedaan door netwerkdelays te veroorzaken terwijl het spel gespeeld
  werd.
  Daarna werd dan gecontroleerd of de weergave van het spelbord consistent
- was in ieder spel.
-\end_layout
-
-\begin_layout Standard
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Uitgebreidere beschrijving nodig waarschijnlijk.
- --> Goed zo?
-\end_layout
-
-\end_inset
-
-
+ was in ieder instantie van het spel.
 \end_layout
 
 \begin_layout Section
@@ -231,9 +260,10 @@ Schema
 
 \begin_layout Standard
 \begin_inset Float figure
+placement H
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -438,7 +468,7 @@ Voor pybonjour was er geen documentatie omdat die in principe hetzelfde
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -703,18 +733,7 @@ Dit is dus de tegenhanger van
 OneToOneService
 \family default
  en wordt wél gebruikt.
- Onze implementatie ondersteunt namelijk meerdere spellen tegelijkertijd
- 
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-verwijzing naar verderop?
-\end_layout
-
-\end_inset
-
-.
+ Onze implementatie ondersteunt namelijk meerdere spellen tegelijkertijd.
 \end_layout
 
 \begin_layout Standard
@@ -793,9 +812,12 @@ name "sub:MessageProcessor.py"
 MessageProcessor 
 \family default
 is de klasse die ervoor zorgt dat bij elke speler hetzelfde spelbord te
- zien is, met ander woorden dat berichten in de juiste volgorde aankomen.
- Alsook zorgt deze klasse ervoor dat onvoorziene leaves van spelers worden
- opgevangen.
+ zien is, met ander woorden: dat berichten in de juiste volgorde aankomen.
+ Alsook zorgt deze klasse ervoor dat onvoorziene 
+\emph on
+leaves
+\emph default
+ van spelers worden opgevangen.
  
 \end_layout
 
@@ -809,7 +831,7 @@ MessageProcessor
 OneToManyService
 \family default
  instantie, een session UUID en een sender UUID.
- De session UUID dient als destination voor (als 
+ De session UUID dient als destination (als 
 \begin_inset Quotes eld
 \end_inset
 
@@ -817,7 +839,7 @@ kanaal
 \begin_inset Quotes erd
 \end_inset
 
- eigenlijk) 
+ eigenlijk) voor 
 \family typewriter
 OneToManyService
 \family default
@@ -1020,6 +1042,13 @@ reference "sub:ManyInARowGame.py"
 
 \begin_layout Subsection
 GlobalState met VectorClock versus Elections
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:GlobalState-vs-Elections"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -1060,14 +1089,15 @@ Schema
 
 \begin_layout Standard
 \begin_inset Float figure
+placement H
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename C:/Users/wimleers/School/GS/project/svn/docs/images/DistributedGame-GlobalState.png
+	filename images/DistributedGame-GlobalState.png
 	width 100text%
 
 \end_inset
@@ -1240,6 +1270,18 @@ clock(A) & isImmediatelyConcurrentWith & clock(C)\\
 \end_layout
 
 \begin_layout Standard
+Een uitgebreide verzameling unit tests zorgt ervoor dat 
+\family typewriter
+VectorClock
+\family default
+ zeker goed werkt.
+\end_layout
+
+\begin_layout Subsubsection*
+Probleem
+\end_layout
+
+\begin_layout Standard
 Een probleem doet zich echt voor als bijvoorbeeld 3 spelers tegelijk een
  zet doen.
  De 3 spelers zullen dan gelijktijdig een mutex aanvragen (
@@ -1256,8 +1298,7 @@ reference "sub:GlobalState.py"
 status open
 
 \begin_layout Plain Layout
-Brecht, kan je dit lezen en kijken of het steek houdt? Code blok is ook
- lelijk, beter idee?
+Brecht, kan je dit lezen en kijken of het steek houdt?
 \end_layout
 
 \end_inset
@@ -1265,55 +1306,51 @@ Brecht, kan je dit lezen en kijken of het steek houdt? Code blok is ook
 :
 \end_layout
 
-\begin_layout Standard
-\begin_inset listings
-inline false
-status open
+\begin_layout Enumerate
+A stuurt mutex bericht met klok: 
+\begin_inset Formula ${A:1,B:0,C:0}$
+\end_inset
 
-\begin_layout Plain Layout
-
-A stuurt mutex bericht met klok: {A:1,B:0,C:0}
-\end_layout
-
-\begin_layout Plain Layout
-
-B stuurt mutex bericht met klok: {A:0,B:1,C:0}
-\end_layout
-
-\begin_layout Plain Layout
-
-C stuurt mutex bericht met klok: {A:0,B:0,C:1}
-\end_layout
-
-\begin_layout Plain Layout
 
 \end_layout
 
-\begin_layout Plain Layout
+\begin_layout Enumerate
+B stuurt mutex bericht met klok: 
+\begin_inset Formula ${A:0,B:1,C:0}$
+\end_inset
 
-Bij A komt bericht van B binnen met klok: {A:0,B:1,C:0}, dit is immediately
- concurrent met de klok van A, dus klok van A wordt geset op {A:1,B:1,C:0}
+
 \end_layout
 
-\begin_layout Plain Layout
-
-Bij A komt bericht van C binnen met klok: {A:0,B:0,C:1}, deze valt niet
- te mergen met de klok van A, dus weten we niet welke speler als eerst de
- mutex krijgt.
- Andere spelers hebben hetzelfde probleem
-\end_layout
-
+\begin_layout Enumerate
+C stuurt mutex bericht met klok: 
+\begin_inset Formula ${A:0,B:0,C:1}$
 \end_inset
 
 
 \end_layout
 
 \begin_layout Standard
-Een uitgebreide verzameling unit tests zorgt ervoor dat 
-\family typewriter
-VectorClock
-\family default
- zeker goed werkt.
+Bij A komt bericht van B binnen met klok: 
+\begin_inset Formula ${A:0,B:1,C:0}$
+\end_inset
+
+, dit is immediately concurrent met de klok van A, dus klok van A wordt
+ geset op 
+\begin_inset Formula ${A:1,B:1,C:0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Bij A komt bericht van C binnen met klok: 
+\begin_inset Formula ${A:0,B:0,C:1}$
+\end_inset
+
+, deze valt niet te mergen met de klok van A, dus weten we niet welke speler
+ als eerst de mutex krijgt.
+ Andere spelers hebben hetzelfde probleem
 \end_layout
 
 \begin_layout Subsubsection
@@ -1372,7 +1409,7 @@ GlobalState
 OneToManyService
 \family default
  instantie, een session UUID en een sender UUID.
- De session UUID dient als destination voor (als 
+ De session UUID dient als destination (als 
 \begin_inset Quotes eld
 \end_inset
 
@@ -1380,7 +1417,7 @@ kanaal
 \begin_inset Quotes erd
 \end_inset
 
- eigenlijk) 
+ eigenlijk) voor 
 \family typewriter
 OneToManyService
 \family default
@@ -1666,107 +1703,6 @@ Het spelbord wordt in deze klasse bijgehouden, en aangepast indien een andere
 \end_layout
 
 \begin_layout Section
-Blaat, pleeh en meer van dat 
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-[kristof] Ik vind dit een erg vreemde sectie :S
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Itemize
-Inzicht: een vector klok ís de frontier van een consistent cut (althans
- in een verzonden bericht) 
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-iemand uitleg opschrijven?
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Itemize
-Snapshot algorithm van Chandy en Lamport ( p453) is onmogelijk te gebruiken
- omdat daarvoor een FIFO-ordered message delivery voor nodig is.
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-hoort bij volgende punt
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Itemize
-Eigen snapshot algoritme: a.d.h.v.
- vector clocks.
- Vereist om de vector clock van het laatste ontvangen in-order bericht bij
- te houden.
- Messages die out-of-order aankomen, worden in een set bijgehouden.
- Telkens er een nieuw bericht bijkomt wordt gekeken of dat bericht ofwel
- >= het laatste ontvangen in-order bericht, ofwel ||.
- Indien ja, wordt dat het laatste ontvangen bericht.
- Vector clock wordt enkel geïncrementeerd bij het zenden van een bericht.
- Zo kunnen ontbrekende (of vertraagde berichten, dus geen FIFO-vereiste
- meer!) gedetecteerd worden.
-\begin_inset Newline newline
-\end_inset
-
-Om verloren gegane messages weer op te vragen, is daarbovenop het volgende
- vereist: ieder proces moet op ieder moment zijn state opgeslagen hebben
- en tevens alle inkomende berichten.
- Indien na een gegeven tijdspanne het eerstvolgende bericht nog steeds niet
- is gekomen, wordt een verlies aangenomen.
- Maar omdat er nog berichten zijn die daarna komen, weten we welke range
- berichten verloren zijn gegaan.
- Dus vragen we dat proces om die berichten nogmaals te sturen.
- (Een eenvoudige check op de vector clock laat toe om processen die deze
- berichten wel al ontvangen hebben, te negeren.) Als dat proces niet binnen
- een bepaalde tijdspanne stuurt, wordt aangenomen dat dat proces gecrashed
- is en worden de berichten bij andere peers opgevraagd.
- Als ook die het niet hebben, worden de overeenkomstige berichten in de
- set van inkomende berichten gewist.
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-moet nog deels geïmplementeerd worden, en staat al deels beschreven in de
- GlobalState sectie
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Itemize
-Toekomstige optimalisatie.
- Multicast wordt gebruikt en dus indien een proces een reeks berichten opvraagt
- die het niet heeft ontvangen, kan het zijn dat ook een ander proces dit
- doet.
- Dus random delay (maar > RTT) voordat deze aanvraag wordt gestuurd, zodat
- een ander proces mogelijk ook van het antwoord kan genieten.
- Zo wordt de hoeveelheid netwerkverkeer laag gehouden.
-\end_layout
-
-\begin_layout Itemize
-Mogelijke extra: beperkt aantal toegelaten spelers.
- Vereist een coördinator en dus ook een election algoritme.
-\end_layout
-
-\begin_layout Section
 Extra's
 \end_layout
 
@@ -1776,7 +1712,7 @@ Om de standaardimplementatie wat meer uit te breiden hebben we volgende
 \end_layout
 
 \begin_layout Itemize
-Gebruik van ZeroConf voor het ontdekken van andere spelers en spellen op
+Gebruik van Zeroconf voor het ontdekken van andere spelers en spellen op
  het netwerk
 \end_layout
 
