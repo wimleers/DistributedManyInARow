@@ -151,16 +151,6 @@ reference "sub:GlobalState-vs-Elections"
 \end_inset
 
 .
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Is dit te negatief?
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Standard
@@ -336,30 +326,6 @@ het ontdekken, updaten (gewijzigde TXT records) en verwijderen van een peer
 \end_layout
 
 \begin_layout Standard
-Berichten worden verstuurd door middel van de 
-\family typewriter
-inbox
-\family default
- en 
-\family typewriter
-outbox
-\family default
- queues.
- Voordat deze queues aangesproken worden, moet er uiteraard eerst een lock
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-het kan aan mij liggen, maar je komt hier ineens uit het niets met een lock.
- mss een beetje context daarover als dat nodig is?
-\end_layout
-
-\end_inset
-
- aangevraagd worden.
-\end_layout
-
-\begin_layout Standard
 Er wordt gebruik gemaakt van pybonjour 
 \begin_inset CommandInset citation
 LatexCommand cite
@@ -406,7 +372,7 @@ ZeroconfMessaging-Thread
 \family typewriter
 DNSServiceRegister
 \family default
-) bij de zeroconf daemon, tesamen met een callback function.
+) bij de zeroconf daemon, tsamen met een callback functie.
  Ook geef je een 
 \emph on
 service type
@@ -543,27 +509,6 @@ reference "sub:Zeroconf-vs-multicast"
 \end_inset
 
 .
- Berichten worden wederom verstuurd door middel van de 
-\family typewriter
-inbox
-\family default
- en 
-\family typewriter
-outbox
-\family default
- queues.
- Ook voordat deze queues aangesproken worden, moet er uiteraard eerst een
- lock
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-weer dat lock
-\end_layout
-
-\end_inset
-
- aangevraagd worden.
 \end_layout
 
 \begin_layout Standard
@@ -667,7 +612,7 @@ name "sub:Service"
 \family typewriter
 Service
 \family default
- is de basis klasse en intialiseert de IP multicast layer (
+ is de basis klasse en initialiseert de IP multicast layer (
 \family typewriter
 IPMulticastMessaging
 \family default
@@ -785,7 +730,8 @@ globaal niveau
 \begin_inset Quotes erd
 \end_inset
 
- uit te wisselen (bijvoorbeeld tijdsynchronisatie) terwijl de 
+ uit te wisselen (applicatie-naar-applicatie, bijvoorbeeld tijdsynchronisatie)
+ terwijl de 
 \begin_inset Quotes eld
 \end_inset
 
@@ -801,32 +747,8 @@ lokale niveau
 \begin_inset Quotes erd
 \end_inset
 
- werken (bijvoorbeeld meerdere chat rooms).
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-dit is niet zo duidelijk
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Omdat we bij een hogere laag zijn aangekomen, moet je niet meer rechtstreeks
- op queues werken, maar zijn er methods voorzien om dit intuïtiever te maken.
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-welke?
-\end_layout
-
-\end_inset
-
-
+ werken (adres-binnen-applicatie-naar-adres-binnen-applicatie, bijvoorbeeld
+ meerdere chat rooms).
 \end_layout
 
 \begin_layout Standard
@@ -874,39 +796,10 @@ MessageProcessor
 OneToManyService
 \family default
  instantie, een session UUID en een sender UUID.
- De session UUID dient als destination
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-niet zo duidelijk, kan weer aan mijn liggen :s
-\end_layout
-
-\end_inset
-
- (als 
-\begin_inset Quotes eld
-\end_inset
-
-kanaal
-\begin_inset Quotes erd
-\end_inset
-
- eigenlijk) voor 
-\family typewriter
-OneToManyService
-\family default
- 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "sub:OneToManyService"
-
-\end_inset
-
-.
- In het chatroom voorbeeld zorgt dit ervoor dat alle berichten voor die
- chatroom bij alle andere deelnemers aankomen.
+ De session UUID dient om een unieke (distributed) service op het netwerk
+ te identificeren.
  De sender UUID dient om iedere deelnemer uniek te kunnen identificeren.
+ 
 \end_layout
 
 \begin_layout Standard
@@ -971,7 +864,7 @@ zorgt ook voor het detecteren van gecrashte processen.
  we deze keep-alive messages op een vast interval, en wachten we 10 seconden
  op de aankomst van deze messages, voordat we een proces als gecrasht detecteren.
  We hebben gekozen voor zo'n grote delay om ervoor te zorgen dat clients
- die enkele seconden delay ondervinden, niet onmiddelijk beschouwd worden
+ die enkele seconden delay ondervinden, niet onmiddellijk beschouwd worden
  als 
 \begin_inset Quotes eld
 \end_inset
@@ -1138,7 +1031,7 @@ reference "sub:VectorClock.py"
 Dit hebben we echter pas laat gemerkt en bijgevolg was het verslag al geschreven
  over deze twee modules.
  In deze sectie volgt dan ook de volledige uitleg over de oude aanpak, maar
- dan nu geannotteerd met opmerkingen waarom dit niet werkte.
+ dan nu geannoteerd met opmerkingen waarom dit niet werkte.
  
 \end_layout
 
@@ -1151,7 +1044,7 @@ Schema
 placement H
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1351,7 +1244,7 @@ reference "sub:GlobalState.py"
 \end_inset
 
 ).
- De klokken zijn allemaal geinitaliseerd op 0.
+ De klokken zijn allemaal geinitialiseerd op 0.
  Het volgende doet zich dan voor:
 \end_layout
 
@@ -1393,7 +1286,7 @@ Bij A komt het bericht van B binnen met klok:
 \end_layout
 
 \begin_layout Standard
-Daarn komt bij A komt het bericht van C binnen met klok: 
+Daarna komt bij A komt het bericht van C binnen met klok: 
 \begin_inset Formula ${A:0,B:0,C:1}$
 \end_inset
 
@@ -1421,26 +1314,7 @@ GlobalState
  zorgt ervoor dat berichten in de correcte volgorde worden gezet voordat
  ze doorgegeven worden aan de hoger liggende laag.
  Hierbij wordt gebruik gemaakt van vector klokken.
- We gebruiken
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-gebruiken we die nog steeds? of is dit nog van het vorig verslag en moet
- dit 
-\begin_inset Quotes eld
-\end_inset
-
-gebruikten
-\begin_inset Quotes erd
-\end_inset
-
- zijn?
-\end_layout
-
-\end_inset
-
- vector klokken en niet Lamport klokken o.w.v.:
+ We gebruikten vector klokken en niet Lamport klokken o.w.v.:
 \end_layout
 
 \begin_layout Quotation
@@ -1477,39 +1351,10 @@ GlobalState
 OneToManyService
 \family default
  instantie, een session UUID en een sender UUID.
- De session UUID dient als destination (als 
-\begin_inset Quotes eld
-\end_inset
-
-kanaal
-\begin_inset Quotes erd
-\end_inset
-
-
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-kanaal weer niet zo duidelijk, ligt wss aan mij...
-\end_layout
-
-\end_inset
-
- eigenlijk) voor 
-\family typewriter
-OneToManyService
-\family default
- 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "sub:OneToManyService"
-
-\end_inset
-
-.
- In het chatroom voorbeeld komen zo alle berichten voor die chatroom bij
- alle andere deelnemers aan.
+ De session UUID dient om een unieke (distributed) service op het netwerk
+ te identificeren.
  De sender UUID dient om iedere deelnemer uniek te kunnen identificeren.
+ 
 \end_layout
 
 \begin_layout Standard
@@ -1586,8 +1431,8 @@ OneToManyService
 \family default
  ontvangen werden met onze session UUID als bestemming, worden opgehaald
  en in een wachtkamer geplaatst.
- Nadat alle binnekomende berichten opgehaald zijn, worden de berichten in
- de wachtkamer volgens hun vectorklok gesorteerd.
+ Nadat alle binnenkomende berichten opgehaald zijn, worden de berichten
+ in de wachtkamer volgens hun vectorklok gesorteerd.
  Diegene met de laagste klokwaarde wordt eruit gepikt.
  Indien de huidige klokwaarde van de 
 \family typewriter
@@ -1644,26 +1489,6 @@ OneToManyService
 \begin_layout Standard
 Ook voor GlobalState zijn er uitgebreide unit tests en ook daarvan zijn
  we dus zeker dat het goed werkt.
- Bovendien worden hierbij 
-\family typewriter
-VectorClock
-\family default
- en 
-\family typewriter
-Service
-\family default
- gebruikt, dus indien deze tests succesvol blijken, hebben we ook die nogmaals
- getest.
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-?
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Section
@@ -1791,7 +1616,8 @@ Het spelbord wordt in deze klasse bijgehouden, en aangepast indien een andere
  Als een bericht over het spel binnenkomt, wordt dat hier verwerkt en naar
  de GUI doorgeven.
  De GUI roept functies in deze klasse aan om acties van de speler aan te
- geven zoals bvb een zet doen of een chatbericht verzenden.
+ geven zoals bvb.
+ een zet doen of een chatbericht verzenden.
 \end_layout
 
 \begin_layout Section
@@ -1806,6 +1632,10 @@ Om de standaardimplementatie wat meer uit te breiden hebben we volgende
 \begin_layout Itemize
 Gebruik van Zeroconf voor het ontdekken van andere spelers en spellen op
  het netwerk
+\end_layout
+
+\begin_layout Itemize
+Meerdere instanties van het spel op 1 computer
 \end_layout
 
 \begin_layout Itemize
@@ -1836,30 +1666,10 @@ Speler ziet waar zijn blokje zal vallen door over de kolommen te bewegen
 
 \begin_layout Itemize
 Mogelijkheid om een AI-speler te laten spelen
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-sorry Kristof
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Section
-Gebruik 
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-kan iemand dit nog snel nalezen? heb ik alles?
-\end_layout
-
-\end_inset
-
-
+Gebruik
 \end_layout
 
 \begin_layout Standard
@@ -1907,15 +1717,6 @@ Een spel freezen, om de consistentie te controleren, kan eenvoudig door
 \end_layout
 
 \begin_layout Standard
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-klote latex zet dit op een aparte pagina :P
-\end_layout
-
-\end_inset
-
 Als laatste is het ook nog mogelijk om een AI-speler te laten spelen.
  Hiervoor moet de checkbox rechtsboven in het venster worden aangevinkt.
 \end_layout
