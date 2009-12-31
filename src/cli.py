@@ -50,8 +50,11 @@ gameCallbackNames = [
     'guiPlayerLeftCallback',
     'guiMoveCallback',
     'guiCanMakeMoveCallback',
+    'guiCantMakeMoveCallback',
     'guiWinnerCallback',
     'guiFinishedCallback',
+    'guiFreezeCallback',
+    'guiUnfreezeCallback',
 ]
 gameCallbacks = [curry(genericCallback, 'GAME', name) for name in gameCallbackNames]
 game = object()
@@ -119,9 +122,6 @@ if not hasattr(game, 'stats'):
 
 print "[CLI] Game stats:"
 print game.stats()
-
-print "[CLI] Game's GlobalState's waiting room:"
-print game.globalState.waitingRoom
 
 # Let the listener wait for Jos to leave.
 if options.listenOnly:
