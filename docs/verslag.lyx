@@ -1,4 +1,4 @@
-#LyX 1.6.3 created this file. For more info see http://www.lyx.org/
+#LyX 1.6.5 created this file. For more info see http://www.lyx.org/
 \lyxformat 345
 \begin_document
 \begin_header
@@ -100,6 +100,16 @@ Brecht Schoolmeesters
 
 \begin_layout Date
 Academiejaar 2009-2010
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+references voor elections, bully algoritme …
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -1673,11 +1683,12 @@ Gebruik
 \end_layout
 
 \begin_layout Subsection
-Voorvereisten
+Systeemvereisten
 \end_layout
 
 \begin_layout Standard
-Om de applicatie uit te voeren op windows is de enige vereiste dat Bonjour
+Om de gecompileerde applicatie uit te voeren op Windows is de enige vereiste
+ dat Bonjour 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "Apple Bonjour"
@@ -1685,6 +1696,37 @@ key "Apple Bonjour"
 \end_inset
 
  geïnstalleerd is.
+\end_layout
+
+\begin_layout Standard
+Als je het programma rechtstreeks uit wenst te voeren op Windows of Mac
+ OS X, dient pybonjour 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "pybonjour"
+
+\end_inset
+
+ geïnstalleerd te zijn.
+ Het programma werkt niet op Linux omdat pybonjour de API van Bonjour, wat
+ enkel voor Windows en Mac OS X beschikbaar is, ondersteunt.
+ De compatibility layer van Avahi 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Avahi"
+
+\end_inset
+
+ (de meest gebruikte daemon voor zeroconf op Linux) voor de Bonjour API
+ is te beperkt.
+ Zie sectie 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:ZeroconfMessaging.py"
+
+\end_inset
+
+ voor details.
 \end_layout
 
 \begin_layout Subsection
