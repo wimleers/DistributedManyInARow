@@ -815,7 +815,14 @@ OneToManyService
 \begin_layout Standard
 Om ervoor te zorgen dat elke speler hetzelfde spelbord te zien krijgt, hebben
  we gewerkt met een server die gekozen wordt door middel van elections.
- Hierbij hebben we gekozen voor het bully-algoritme.
+ Hierbij hebben we gekozen voor het bully-algoritme 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Bully algoritme"
+
+\end_inset
+
+.
  Een election wordt gestart als de vorige server is gecrasht, of deze het
  spel heeft verlaten.
  Bij dit algoritme is er het probleem dat bij een election meerdere clients
@@ -1700,7 +1707,8 @@ key "Apple Bonjour"
 
 \begin_layout Standard
 Als je het programma rechtstreeks uit wenst te voeren op Windows of Mac
- OS X, dient pybonjour 
+ OS X (door gebruik te maken van de pyhon interpreter), dient pybonjour
+ 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "pybonjour"
@@ -2018,6 +2026,28 @@ status collapsed
 \begin_layout Plain Layout
 
 http://en.wikipedia.org/wiki/Domain_Name_System#Protocol_details
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+label "11"
+key "Bully algoritme"
+
+\end_inset
+
+Bully algorithm, Wikipedia, 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://en.wikipedia.org/wiki/Bully_algorithm
 \end_layout
 
 \end_inset
