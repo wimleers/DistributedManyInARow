@@ -47,8 +47,8 @@ class NetworkLobbyWidget(QtGui.QWidget):
         # Callback to remove a game with name and UUID from the list.
         for i in range(self.gameList.count()):
             currentItem = self.gameList.item(i)
-            if(currentItem.UUID == UUID):
-                self.gameList.removeItemWidget(currentItem)
+            if (currentItem.UUID == UUID):
+                self.gameList.takeItem(i)
                 break
             
     def getGameInfo(self, UUID):
@@ -74,7 +74,7 @@ class NetworkLobbyWidget(QtGui.QWidget):
         for i in range(self.peerList.count()):
             currentItem = self.peerList.item(i)
             if(currentItem.serviceName == serviceName and currentItem.interfaceIndex == interfaceIndex):
-                self.peerList.removeItemWidget(currentItem)
+                self.peerList.takeItem(i)
                 break
             
     def addPlayer(self, player):
@@ -92,7 +92,7 @@ class NetworkLobbyWidget(QtGui.QWidget):
         for i in range(self.playerList.count()):
             currentItem = self.playerList.item(i)
             if(currentItem.player.UUID == player.UUID):
-                self.peerList.removeItemWidget(currentItem)
+                self.peerList.takeItem(i)
                 break
         
     
