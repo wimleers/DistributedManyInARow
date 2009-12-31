@@ -115,8 +115,6 @@ class ManyInARowService(OneToManyService):
                 self.otherPlayers[serviceName] = player
                 self.guiPlayerAddedCallback(player)
             elif self.otherPlayers[serviceName] != player:
-                print self.otherPlayers[serviceName].name, self.otherPlayers[serviceName].UUID, self.otherPlayers[serviceName].color
-                print player.name, player.UUID, player.color
                 self.otherPlayers[serviceName] = player
                 self.guiPlayerUpdatedCallback(self.otherPlayers[serviceName])
             del description['player']
@@ -159,6 +157,13 @@ class ManyInARowService(OneToManyService):
                     if len(self.games[gameUUID]['players']) == 0:
                         self.guiGameEmptyCallback(gameUUID, self.games[gameUUID])
                         del self.games[gameUUID]
+
+        # Detect empty games.
+        for gameUUID in self.games.keys():
+            if gameUUID not in description.keys():
+                self.guiGameEmptyCallback(gameUUID, self.games[gameUUID])
+                del self.games[gameUUID]
+
 
         # Rebuild the service description now that we've updated our list of
         # games.
@@ -225,6 +230,11 @@ class ManyInARowService(OneToManyService):
         with self.lock:
             # Update the game list.
             self.games[gameUUID]['players'].remove(self.player.UUID)
+            # If there are no more players in this game, then call the
+            # guiGameEmptyCallback callback, delete it and notify the GUI.
+            if len(self.games[gameUUID]['players']) == 0:
+                self.guiGameEmptyCallback(gameUUID, self.games[gameUUID])
+                del self.games[gameUUID]
             # Broadcast the updated game list.
             self.buildServiceDescription()
 
