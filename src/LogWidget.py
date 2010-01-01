@@ -13,3 +13,4 @@ class LogWidget(QtGui.QListWidget):
         newItem = QtGui.QListWidgetItem(time + ": " + player.name + " " + message, self)
         newItem.setBackgroundColor(QtGui.QColor(player.color[0], player.color[1], player.color[2]))
         self.addItem(newItem)
+        self.scrollToItem(newItem)

@@ -248,6 +248,7 @@ class GameWidget(QtGui.QWidget):
             newItem = QtGui.QListWidgetItem(playerName + ": " + message, self.ui.messageList)
             newItem.setBackgroundColor(color)
             self.ui.messageList.addItem(newItem)
+            self.ui.messageList.scrollToItem(newItem)
         
     
     def moveCallBack(self, playerUUID, col, row):
