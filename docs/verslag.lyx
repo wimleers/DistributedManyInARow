@@ -100,16 +100,6 @@ Brecht Schoolmeesters
 
 \begin_layout Date
 Academiejaar 2009-2010
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-references voor elections, bully algoritme …
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Standard
@@ -1716,7 +1706,22 @@ key "pybonjour"
 \end_inset
 
  geïnstalleerd te zijn.
- Het programma werkt niet op Linux omdat pybonjour de API van Bonjour, wat
+ Het kan dan als volgt opgestart worden:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+python MainWindow.py
+\end_layout
+
+\end_inset
+
+Het programma werkt niet op Linux omdat pybonjour de API van Bonjour, wat
  enkel voor Windows en Mac OS X beschikbaar is, ondersteunt.
  De compatibility layer van Avahi 
 \begin_inset CommandInset citation
